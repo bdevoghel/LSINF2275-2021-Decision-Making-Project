@@ -59,6 +59,9 @@ class Die:
     def __hash__(self):
         return self.type
 
+    def __repr__(self):
+        return f"[Die:{self.type}]"
+
 
 class Board:
     def __init__(self, layout, circle):
@@ -68,6 +71,9 @@ class Board:
 
         # transition matrices
         self.P = {die:np.array(self.compute_transition_matrix(die)) for die in self.dice}
+
+    def __repr__(self):
+        return f"[Board:{list(self.layout)}-Circle:{self.circle}]"
 
     def compute_transition_matrix(self, die: Die):
         """Computes transition matrix in canonical form for corresponding die"""
@@ -177,26 +183,20 @@ def markovDecision(layout: np.ndarray, circle: bool):
     actions = np.zeros(len(board.layout) - 1)
     costs = - np.ones(len(board.layout) - 1)
 
-    # Value-iteration algo
+    # Value Iteration Algorithm
     def rec(pos, previous_die):
-        cost = 2 if pos == PRISON else 1
+        cost = 2 if pos == PRISON else 1  # TODO
         action_costs = {}
         for die in board.dice:
             total_cost = 0
-            for state, prob in enumerate(board.P[die][pos]):
-                if prob != 0:
-                    if costs[state] == -1:
-                        _, path_cost = rec(state, die)
-                        costs[state] = path_cost
-                    else:
-                        path_cost = costs[state]
-                    total_cost += prob * path_cost
+            for next_pos, prob in enumerate(board.P[die][pos]):
+                if next_pos < 14 and prob != 0:
+                    if costs[next_pos] == -1:  # not computed yet
+                        _, costs[next_pos] = rec(next_pos, die) if next_pos != pos else (None, 0)
+                    total_cost += prob * costs[next_pos]
             action_costs[die] = cost + total_cost
-        min_action = min(action_costs, key=costs.get)
-        costs[pos] = action_costs[min_action]
-        actions[pos] = min_action.type
-        return min_action.type, costs[min_action]
-
+        min_action = min(action_costs, key=action_costs.get)
+        return min_action.type, action_costs[min_action]
 
     for i in range(len(actions)-1, -1, -1):
         actions[i], costs[i] = rec(i, None)
@@ -204,10 +204,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
     return [costs, actions]
 
 
-def test_markovDecision():
-    layout = test_layout1
-    circle = False
-
+def test_markovDecision(layout, circle):
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
 
@@ -225,6 +222,6 @@ def test_markovDecision():
 
 
 if __name__ == '__main__':
-    test_markovDecision()
+    test_markovDecision(test_layout1, False)
 
     # Bonus : implement empirical tests to show convergence towards obtained results
