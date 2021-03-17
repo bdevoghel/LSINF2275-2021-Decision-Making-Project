@@ -174,24 +174,39 @@ def markovDecision(layout: np.ndarray, circle: bool):
     :param circle: indicates if the player must land exactly on the final square to win or still wins by overstepping
     """
     board = Board(layout, circle)
+    actions = np.zeros(len(board.layout) - 1)
+    costs = - np.ones(len(board.layout) - 1)
 
     # Value-iteration algo
-    def rec(pos):
+    def rec(pos, previous_die):
+        cost = 2 if pos == PRISON else 1
+        action_costs = {}
         for die in board.dice:
-            board.P[die][pos]
+            total_cost = 0
+            for state, prob in enumerate(board.P[die][pos]):
+                if prob != 0:
+                    if costs[state] == -1:
+                        _, path_cost = rec(state, die)
+                        costs[state] = path_cost
+                    else:
+                        path_cost = costs[state]
+                    total_cost += prob * path_cost
+            action_costs[die] = cost + total_cost
+        min_action = min(action_costs, key=costs.get)
+        costs[pos] = action_costs[min_action]
+        actions[pos] = min_action.type
+        return min_action.type, costs[min_action]
 
-    rec()
 
-    # TODO
-    expec = np.random.randint(low=0, high=5, size=14)
-    dice = np.random.randint(low=0, high=5, size=14)
+    for i in range(len(actions)-1, -1, -1):
+        actions[i], costs[i] = rec(i, None)
 
-    return [expec, dice]
+    return [costs, actions]
 
 
 def test_markovDecision():
-    layout = test_layout3
-    circle = True
+    layout = test_layout1
+    circle = False
 
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
