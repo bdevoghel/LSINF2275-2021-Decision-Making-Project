@@ -207,10 +207,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
     for i in range(len(actions) - 1):
         costs[i] = rec(i, None, 1)
 
-    for i in range(len(actions)-1, -1, -1):
-        actions[i], costs[i] = rec(i, None)
-
-    return [costs, actions]
+    return [costs[:-1], actions]
 
 
 def test_markovDecision(layout, circle):
@@ -231,6 +228,6 @@ def test_markovDecision(layout, circle):
 
 
 if __name__ == '__main__':
-    test_markovDecision(test_layout1, False)
+    test_markovDecision(test_layout3, False)
 
     # Bonus : implement empirical tests to show convergence towards obtained results
