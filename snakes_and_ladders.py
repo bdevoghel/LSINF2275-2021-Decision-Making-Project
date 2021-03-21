@@ -59,6 +59,9 @@ class Die:
     def __hash__(self):
         return self.type
 
+    def __repr__(self):
+        return f"[Die:{self.type}]"
+
 
 class Board:
     def __init__(self, layout, circle):
@@ -68,6 +71,9 @@ class Board:
 
         # transition matrices
         self.P = {die:np.array(self.compute_transition_matrix(die)) for die in self.dice}
+
+    def __repr__(self):
+        return f"[Board:{list(self.layout)}-Circle:{self.circle}]"
 
     def compute_transition_matrix(self, die: Die):
         """Computes transition matrix in canonical form for corresponding die"""
@@ -201,13 +207,13 @@ def markovDecision(layout: np.ndarray, circle: bool):
     for i in range(len(actions) - 1):
         costs[i] = rec(i, None, 1)
 
-    return [costs[:-1], actions]
+    for i in range(len(actions)-1, -1, -1):
+        actions[i], costs[i] = rec(i, None)
+
+    return [costs, actions]
 
 
-def test_markovDecision():
-    layout = test_layout3
-    circle = True
-
+def test_markovDecision(layout, circle):
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
 
@@ -225,6 +231,6 @@ def test_markovDecision():
 
 
 if __name__ == '__main__':
-    test_markovDecision()
+    test_markovDecision(test_layout1, False)
 
     # Bonus : implement empirical tests to show convergence towards obtained results
