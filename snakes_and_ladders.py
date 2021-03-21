@@ -32,9 +32,9 @@ test_layout2 = np.random.randint(low=0, high=5, size=15)
 test_layout2[[0, -1]] = 0  # start and goal squares must be ordinary
 
 # layout 3 : perso
-test_layout3 = np.array([0 for _ in range(15)])
+test_layout3 = np.array([ORDINARY for _ in range(15)])
 test_layout3[8] = RESTART
-# test_layout3[7] = GAMBLE
+test_layout3[7] = GAMBLE
 test_layout3[12] = PENALTY
 
 
@@ -68,10 +68,6 @@ class Board:
 
         # transition matrices
         self.P = {die:np.array(self.compute_transition_matrix(die)) for die in self.dice}
-
-        # order in which to compute board scores for each die
-        self.dependencies = {}
-        self.min_dependency_order()
 
     def compute_transition_matrix(self, die: Die):
         """Computes transition matrix in canonical form for corresponding die"""
@@ -170,50 +166,6 @@ class Board:
 
         return landing_proba
 
-    def min_dependency_order(self):
-        def rec(pos, die, required):
-            for next, prob in enumerate(self.P[die][pos]):
-                if prob > 0 and not required[next]:
-                    required[next] = True
-                    required = rec(next, die, required)
-            return required
-
-        for die in self.dice:
-            dep = []
-            for i in range(len(self.layout)-1):
-                required = [False for _ in range(len(self.layout))]
-                required = rec(i, die, required)
-                required[i] = False
-                required[-1] = False
-                dep.append(required)
-
-            self.dependencies[die] = dep
-
-    def update_dependencies(self, state, die):
-        for i in range(len(self.layout) - 1):
-            if self.dependencies[die][i][state]:
-                self.dependencies[die][i][state] = False
-
-    def compute_costs_for_state(self, policy, state, costs, budget):
-        if costs[state] != -1: return budget * costs[state]
-        elif budget < 1e-6: return 0
-        cost = 0
-        for i, p in enumerate(self.P[policy[state]][state]):
-            if p > 0 and i != state:
-                cost += self.compute_costs_for_state(policy, i, costs, p*budget)
-        cost += 1 # TODO change for prison
-        cost /= (1 - self.P[policy[state]][state, state])
-        costs[state] = cost
-        return cost
-
-    def compute_costs(self, policy):
-        costs = [-1 for _ in range(len(self.layout))]
-        costs[-1] = 0
-        for state, action in enumerate(policy):
-            costs[state] = self.compute_costs_for_state(policy, state, costs, 1)
-        return costs
-
-
 
 def markovDecision(layout: np.ndarray, circle: bool):
     """
@@ -222,17 +174,39 @@ def markovDecision(layout: np.ndarray, circle: bool):
     :param circle: indicates if the player must land exactly on the final square to win or still wins by overstepping
     """
     board = Board(layout, circle)
+    actions = np.zeros(len(board.layout) - 1)
+    costs = - np.ones(len(board.layout))
+    costs[-1] = 0
 
-    policy = [board.dice[1] for _ in range(len(board.layout)-1)]
-    costs = board.compute_costs(policy)
-    pass
     # Value-iteration algo
+    def rec(pos, previous_die, budget):
+        if costs[pos] != -1:
+            return budget * costs[pos]
+        elif budget < 1e-12:
+            return 0
+        cost = 2 if pos == PRISON else 1
+        action_costs = {}
+        for die in board.dice:
+            total_cost = 0
+            for state, prob in enumerate(board.P[die][pos]):
+                if prob > 0 and state != pos:
+                    total_cost += rec(state, die, budget*prob)
+            action_costs[die] = cost + total_cost
+            action_costs[die] /= 1 - board.P[die][pos, pos]
+        min_action = min(action_costs, key=action_costs.get)
+        costs[pos] = action_costs[min_action]
+        actions[pos] = min_action.type
+        return costs[pos] * budget
 
+    for i in range(len(actions) - 1):
+        costs[i] = rec(i, None, 1)
+
+    return [costs[:-1], actions]
 
 
 def test_markovDecision():
     layout = test_layout3
-    circle = False
+    circle = True
 
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
