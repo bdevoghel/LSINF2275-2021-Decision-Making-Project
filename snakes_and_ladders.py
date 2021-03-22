@@ -81,6 +81,8 @@ class Board:
         # transition matrices
         self.P = {die: np.array(self.compute_transition_matrix(die)) for die in self.dice}
 
+        self.prison_extra_cost = {die: self.compute_prison_extra_cost(die) for die in self.dice}
+
     def __repr__(self):
         return f"[Board:{list(self.layout)}-Circle:{self.circle}]"
 
@@ -157,7 +159,7 @@ class Board:
 
     def apply_penalty(self, pos):
         if 10 <= pos <= 12:
-            return pos-7 - 3
+            return pos - 7 - 3
         else:
             return max(0, pos - 3)
 
@@ -186,6 +188,14 @@ class Board:
 
         return landing_proba
 
+    def compute_prison_extra_cost(self, die):
+        extra_cost = np.zeros(len(self.layout))
+        if die.type == NORMAL:
+            extra_cost[np.where(self.layout == PRISON)] += 0.5
+        elif die.type == RISKY:
+            extra_cost[np.where(self.layout == PRISON)] += 1
+        return extra_cost
+
 
 def markovDecision(layout: np.ndarray, circle: bool):
     """
@@ -193,42 +203,39 @@ def markovDecision(layout: np.ndarray, circle: bool):
                    containing 15 values representing the 15 squares, values in [0, 4]
     :param circle: indicates if the player must land exactly on the final square to win or still wins by overstepping
     """
+
     board = Board(layout, circle)
-    actions = - np.ones(len(board.layout) - 1)
-    costs = - np.ones(len(board.layout))
-    costs[-1] = 0  # goal square
 
-    def value_iteration(pos, previous_die, budget):
-        """Computes estimated cost of reaching goal with the Value Iteration algorithm"""
-        if costs[pos] != -1:  # cost already computed previously
-            return costs[pos] * budget  # TODO sure ??
-        elif budget < 1e-12:  # budget is negligible
-            return 0
+    def value_iteration(eps):
+        policy = np.zeros(len(board.layout) - 1, dtype=int)
+        costs = -np.ones(len(board.layout))
+        costs[-1] = 0
+        delta = 2*eps
 
-        cost = 2 if board.layout[pos] == PRISON else 1  # TODO check if prison was triggered
-        cost_per_die = {}
+        # Looping until expected number of turns has converged for every state
+        while delta > eps:
+            # Keeping track of last iteration's expected number of turns for each state
+            v = costs.copy()
+            for state in range(len(policy)):
+                cost_per_die = {}
+                for die in board.dice:
+                    # cost to throw the dice is 1 (1 turn)
+                    action_cost = 1
 
-        for die in board.dice:
-            cost_per_die[die] = cost
+                    # adding the cost to expectation of next turns costs (adding the extra cost of falling on a
+                    # prison trap if the normal or risky die is used)
+                    cost_per_die[die] = action_cost + np.dot(board.P[die][state], costs + board.prison_extra_cost[die])
 
-            # add subjacent costs
-            for next_pos, landing_proba in enumerate(board.P[die][pos]):
-                if landing_proba > 0 and next_pos != pos:
-                    next_budget = budget * landing_proba
-                    cost_per_die[die] += value_iteration(next_pos, die, next_budget)
+                # computing the best action for this state
+                cheapest_die = min(cost_per_die, key=cost_per_die.get)
+                costs[state] = cost_per_die[cheapest_die]
+                policy[state] = cheapest_die.type
 
-            if board.P[die][pos, pos] != 1:
-                cost_per_die[die] /= 1 - board.P[die][pos, pos]  # p(k|k)
+            # max difference between previous and current estimation of expected number of turns
+            delta = np.max(np.abs(costs - v))
+        return [costs[:-1], policy]
 
-        cheapest_die = min(cost_per_die, key=cost_per_die.get)
-        costs[pos] = cost_per_die[cheapest_die]
-        actions[pos] = cheapest_die.type
-        return costs[pos] * budget
-
-    for square in range(len(actions)):
-        costs[square] = value_iteration(square, previous_die=None, budget=1)
-
-    return [costs[:-1], actions]
+    return value_iteration(1e-6)
 
 
 def test_markovDecision(layout, circle, name=""):
@@ -253,5 +260,7 @@ if __name__ == '__main__':
     test_markovDecision(layout_ORDINARY, True, "ORDINARY")
     test_markovDecision(layout_PRISON, True, "PRISON")
     test_markovDecision(layout_PENALTY, True, "PENALTY")
+    test_markovDecision(test_layout2, True, "RANDOM")
+    test_markovDecision(test_layout3, True, "CUSTOM")
 
     # Bonus : implement empirical tests to show convergence towards obtained results
