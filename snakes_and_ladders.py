@@ -105,7 +105,7 @@ class Board:
             tm.append(self.compute_landing_proba(square, die))
         return tm
 
-    def accessible_squares(self, pos, delta, budget=1):
+    def accessible_squares(self, pos, delta, budget=1.):
         """
         Returns a list of tuples of the accessible squares with the budget distributed
         according to the squares' respective landing probabilities
@@ -237,35 +237,36 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
     board = Board(layout, circle)
 
-    def value_iteration(eps=1e-6):
-        policy = np.zeros(len(board.layout) - 1, dtype=int)
-        costs = np.ones(len(board.layout))
-        costs[-1] = 0  # goal
-        delta = 2*eps
+    policy = np.zeros(len(board.layout) - 1, dtype=int)
+    costs = np.ones(len(board.layout))
+    costs[-1] = 0  # goal
 
-        # Looping until expected number of turns has converged for every state
-        while delta > eps:
-            # Keeping track of last iteration's expected number of turns for each state
-            v = costs.copy()
-            for state in range(len(policy)):
-                cost_per_die = {}
-                for die in board.dice:
-                    action_cost = 1  # cost to throw the dice is 1 (1 turn)
+    # VALUE ITERATION ALGORITHM
+    eps = 1e-6
+    delta = eps + 1
 
-                    # Adding the cost to expectation of next turns costs
-                    # (+ adding the extra cost of falling on a prison trap if the normal or risky die is used)
-                    cost_per_die[die] = action_cost + np.dot(board.P[die][state], costs + board.prison_extra_cost[die])
+    # Looping until expected number of turns has converged for every state
+    while delta > eps:
+        # Keeping track of last iteration's expected number of turns for each state
+        prev_cost = costs.copy()
+        for state in range(len(policy)):
+            cost_per_die = {}
+            for die in board.dice:
+                action_cost = 1  # cost to throw the dice is 1 (1 turn)
 
-                # computing the best action for this state
-                cheapest_die = min(cost_per_die, key=cost_per_die.get)
-                costs[state] = cost_per_die[cheapest_die]
-                policy[state] = cheapest_die.type
+                # Adding the cost to expectation of next turns costs
+                # (+ adding the extra cost of falling on a prison trap if the normal or risky die is used)
+                cost_per_die[die] = action_cost + board.prison_extra_cost[die][state] + np.dot(board.P[die][state], costs)
 
-            # max difference between previous and current estimation of expected number of turns
-            delta = np.max(np.abs(costs - v))
-        return [costs[:-1], policy]
+            # computing the best action for this state
+            cheapest_die = min(cost_per_die, key=cost_per_die.get)
+            costs[state] = cost_per_die[cheapest_die]
+            policy[state] = cheapest_die.type
 
-    return value_iteration()
+        # max difference between previous and current estimation of expected number of turns
+        delta = np.max(np.abs(costs - prev_cost))
+
+    return [costs[:-1], policy]
 
 
 def test_markovDecision(layout, circle, name=""):
@@ -275,18 +276,18 @@ def test_markovDecision(layout, circle, name=""):
     result = markovDecision(layout, circle)
 
     assert isinstance(result, list) and len(result) == 2, \
-        f"Result is not in correct format (should be a list like [expec, dice])\n\nRESULT : {result}"
-    expec, dice = result
-    assert isinstance(expec, np.ndarray) and len(expec) == 14, \
-        f"Output expected cost is not a ndarray or is not of length 14\n\nEXPEC : {expec}"
+        f"Result is not in correct format (should be a list like [expectation, dice])\n\nRESULT : {result}"
+    expectation, dice = result
+    assert isinstance(expectation, np.ndarray) and len(expectation) == 14, \
+        f"Output expected cost is not a ndarray or is not of length 14\n\nEXPECTATION : {expectation}"
     assert isinstance(dice, np.ndarray) and len(dice) == 14, \
-        f"Output dice is not a ndarray or is not of length 14\n\nDICE : {dice}"
+        f"Output dice is not a ndarray or is not of length 14\n\nDICE       : {dice}"
 
-    _format = "{:<7}"*14
+    _format = "{:<7}" * 14
     print(f"\nSuccess {name} - Circle: {circle}"
-          f"\n        {_format.format(*list(range(1,15)))}"
-          f"\nEXPEC : {_format.format(*np.around(expec, 2))}"
-          f"\nDICE  : {_format.format(*np.around(dice, 2))}"
+          f"\n              {_format.format(*list(range(1, 15)))}"
+          f"\nEXPECTATION : {_format.format(*np.around(expectation, 2))}"
+          f"\nDICE        : {_format.format(*np.around(dice, 2))}"
           f"\n")
 
     return result
@@ -295,44 +296,48 @@ def test_markovDecision(layout, circle, name=""):
 def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
     board = Board(layout, circle)
     nb_rolls = []
+    print(f"Simulating {int(nb_iter)} games with following"
+          f"\n   - layout : {layout}, circle={circle}"
+          f"\n   - policy : {policy if policy is not None else 'random die selection'}")
     if verbose:
-        print(f"Simulating {int(nb_iter)} games with following"
-              f"\n   - layout : {layout}, circle={circle}"
-              f"\n   - policy : {policy if policy is not None else 'random die selection'}")
         print(f" - Progress : {0:>2}%", end='')
     for i in range(int(nb_iter)):
         if verbose:
-            if i % (nb_iter/20) == 0:
-                print(f"\b\b\b{int(100 * i/nb_iter):>2}%", end='')
-            if i == nb_iter-1:
+            if i % (nb_iter / 20) == 0:
+                print(f"\b\b\b{int(100 * i / nb_iter):>2}%", end='')
+            if i == nb_iter - 1:
                 print("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", end='')
 
         pos = 0
         nb_rolls.append(0)
         while pos != len(layout) - 1:
-            pos, in_prison = board.roll_dice(pos, policy[pos] if policy is not None else np.random.randint(RISKY)+1)
+            pos, in_prison = board.roll_dice(pos, policy[pos] if policy is not None else np.random.randint(RISKY) + 1)
             nb_rolls[-1] += 1 if not in_prison else 2
 
     print(f"Expectation results : " +
           (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
-          f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} | σ = {np.std(nb_rolls):>7.4f} | [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
+          f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} "
+          f"| σ = {np.std(nb_rolls):>7.4f} "
+          f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
           f"\n")
 
 
 if __name__ == '__main__':
-    test_markovDecision(layout_ORDINARY, False, "ORDINARY")
-    # test_markovDecision(layout_PRISON, False, "PRISON")
+    # test_markovDecision(layout_ORDINARY, False, "ORDINARY")
+    result = test_markovDecision(layout_PRISON, False, "PRISON")
+    test_empirically(layout_PRISON, False, *result)
     # test_markovDecision(layout_PENALTY, False, "PENALTY")
     # test_markovDecision(layout_random, False, "RANDOM")
     # test_markovDecision(layout_custom1, False, "CUSTOM1")
-    result = test_markovDecision(layout_custom2, False, "CUSTOM2")
-    test_empirically(layout_custom2, False, *result)
 
-    result = test_markovDecision(layout_custom2, True, "CUSTOM2")
-    test_empirically(layout_custom2, True, *result)
+    # result = test_markovDecision(layout_custom2, False, "CUSTOM2")
+    # test_empirically(layout_custom2, False, *result)
 
-    test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
-    test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
-    test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
-    test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY)+1 for _ in range(15)]))
-    test_empirically(layout_custom2, True, policy=None)
+    # result = test_markovDecision(layout_custom2, True, "CUSTOM2")
+    # test_empirically(layout_custom2, True, *result)
+
+    # test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
+    # test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
+    # test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
+    # test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY) + 1 for _ in range(15)]))
+    # test_empirically(layout_custom2, True, policy=None)
