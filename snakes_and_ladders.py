@@ -72,7 +72,7 @@ class Die:
         """Returns number of steps to advance and tells if trap triggers or not"""
         nb_steps = np.random.randint(low=0, high=self.type + 1, size=times)
         does_trigger = [False if rand > self.type - 1.5 else True for rand in np.random.rand(times)]
-        return nb_steps, does_trigger
+        return (nb_steps, does_trigger) if times > 1 else (nb_steps[0], does_trigger[0])
 
     def get_all_possible_roll_combinations(self):
         return [item for sublist in [[(steps, trigger) for steps in self.possible_steps] for trigger in self.possible_trap_trigger] for item in sublist]
@@ -105,7 +105,7 @@ class Board:
             tm.append(self.compute_landing_proba(square, die))
         return tm
 
-    def accessible_square(self, pos, delta, budget):
+    def accessible_squares(self, pos, delta, budget=1):
         """
         Returns a list of tuples of the accessible squares with the budget distributed
         according to the squares' respective landing probabilities
@@ -116,7 +116,7 @@ class Board:
             if delta == 0:
                 return [(pos+delta, budget)]
             else:
-                return [(pos+delta, budget/2), (pos+7+delta, budget/2)] # lane split
+                return [(pos+delta, budget/2), (pos+7+delta, budget/2)]  # lane split
         elif pos < 7:
             return [(pos+delta, budget)]
         elif pos == 7:
@@ -183,7 +183,7 @@ class Board:
         """
         landing_proba = np.zeros(len(self.layout))
         for step in die.possible_steps:
-            for new_pos, budget in self.accessible_square(start_position, step, die.steps_proba):
+            for new_pos, budget in self.accessible_squares(start_position, step, die.steps_proba):
                 square_type = self.layout[new_pos]
                 if square_type == ORDINARY:
                     landing_proba[new_pos] += budget
@@ -196,7 +196,8 @@ class Board:
                 elif square_type == PRISON:
                     landing_proba[new_pos] += budget  # TODO modify ??
                 elif square_type == GAMBLE:
-                    landing_proba[range(len(self.layout))] += 1 / len(self.layout)
+                    landing_proba[:] += budget * die.trap_trigger_proba / len(self.layout)
+                    landing_proba[new_pos] += budget * (1 - die.trap_trigger_proba)
 
         return landing_proba
 
@@ -210,7 +211,20 @@ class Board:
 
     def roll_dice(self, pos, die_type):
         nb_steps, does_trigger = Die(die_type).roll()
-        new_pos, in_prison = 14, False  # TODO
+        accessible_squares = [int(x[0]) for x in self.accessible_squares(pos, nb_steps)]
+        new_pos = np.random.choice(accessible_squares)
+        in_prison = False
+
+        square_type = self.layout[new_pos]
+        if does_trigger:
+            if square_type == RESTART:
+                new_pos = 0
+            elif square_type == PENALTY:
+                new_pos = self.apply_penalty(new_pos)
+            elif square_type == PRISON:
+                in_prison = True
+            elif square_type == GAMBLE:
+                new_pos = np.random.choice(range(len(self.layout)))
         return new_pos, in_prison
 
 
@@ -225,7 +239,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
     def value_iteration(eps=1e-6):
         policy = np.zeros(len(board.layout) - 1, dtype=int)
-        costs = -np.ones(len(board.layout))
+        costs = np.ones(len(board.layout))
         costs[-1] = 0  # goal
         delta = 2*eps
 
@@ -278,32 +292,47 @@ def test_markovDecision(layout, circle, name=""):
     return result
 
 
-def compare_with_empirical_results(layout, circle, expectation, policy):
+def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
     board = Board(layout, circle)
     nb_rolls = []
-    for i in range(int(1e5)):  # TODO do on 1e7
-        if i % 100000 == 0:
-            print(f"{i/1e5}")
+    if verbose:
+        print(f"Simulating {int(nb_iter)} games with following"
+              f"\n   - layout : {layout}, circle={circle}"
+              f"\n   - policy : {policy if policy is not None else 'random die selection'}")
+        print(f" - Progress : {0:>2}%", end='')
+    for i in range(int(nb_iter)):
+        if verbose:
+            if i % (nb_iter/20) == 0:
+                print(f"\b\b\b{int(100 * i/nb_iter):>2}%", end='')
+            if i == nb_iter-1:
+                print("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", end='')
 
         pos = 0
         nb_rolls.append(0)
         while pos != len(layout) - 1:
-            pos, in_prison = board.roll_dice(pos, policy[pos])
+            pos, in_prison = board.roll_dice(pos, policy[pos] if policy is not None else np.random.randint(RISKY)+1)
             nb_rolls[-1] += 1 if not in_prison else 2
-    mean = np.mean(nb_rolls)
-    print(expectation[0], mean)
+
+    print(f"Expectation results : " +
+          (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
+          f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} | σ = {np.std(nb_rolls):>7.4f} | [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
+          f"\n")
 
 
 if __name__ == '__main__':
-    # test_markovDecision(layout_ORDINARY, False, "ORDINARY")
+    test_markovDecision(layout_ORDINARY, False, "ORDINARY")
     # test_markovDecision(layout_PRISON, False, "PRISON")
     # test_markovDecision(layout_PENALTY, False, "PENALTY")
     # test_markovDecision(layout_random, False, "RANDOM")
     # test_markovDecision(layout_custom1, False, "CUSTOM1")
     result = test_markovDecision(layout_custom2, False, "CUSTOM2")
-    compare_with_empirical_results(layout_custom2, False, *result)
+    test_empirically(layout_custom2, False, *result)
 
     result = test_markovDecision(layout_custom2, True, "CUSTOM2")
-    compare_with_empirical_results(layout_custom2, True, *result)
+    test_empirically(layout_custom2, True, *result)
 
-    # Bonus : implement empirical tests to show convergence towards obtained results
+    test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
+    test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
+    test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
+    test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY)+1 for _ in range(15)]))
+    test_empirically(layout_custom2, True, policy=None)
