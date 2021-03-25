@@ -25,7 +25,7 @@ PRISON = 3
 GAMBLE = 4
 
 # only ORDINARY squares, no traps
-layout_ORDINARY = np.array([0 for _ in range(15)])
+layout_ORDINARY = np.array([ORDINARY for _ in range(15)])
 
 # only PENALTY (go back 3) traps
 layout_PENALTY = np.ones(15) * PENALTY
@@ -35,16 +35,28 @@ layout_PENALTY[[0, -1]] = 0  # start and goal squares must be ordinary
 layout_PRISON = np.ones(15) * PRISON
 layout_PRISON[[0, -1]] = 0  # start and goal squares must be ordinary
 
-# layout 2 : random initialized traps
-test_layout2 = np.random.randint(low=0, high=5, size=15)
-test_layout2[[0, -1]] = 0  # start and goal squares must be ordinary
+# random initialized traps
+layout_random = np.random.randint(low=0, high=5, size=15)
+layout_random[[0, -1]] = 0  # start and goal squares must be ordinary
 
-# layout 3 : personalized
-test_layout3 = np.array([ORDINARY for _ in range(15)])
-test_layout3[8] = RESTART
-test_layout3[7] = GAMBLE
-test_layout3[12] = PENALTY
+# custom layout
+layout_custom1 = np.array([ORDINARY for _ in range(15)])
+layout_custom1[8] = RESTART
+layout_custom1[7] = GAMBLE
+layout_custom1[12] = PENALTY
 
+# custom layout
+layout_custom2 = np.array([ORDINARY for _ in range(15)])
+layout_custom2[1] = GAMBLE
+layout_custom2[2] = RESTART
+layout_custom2[3] = GAMBLE
+layout_custom2[4] = PENALTY
+layout_custom2[6] = PRISON
+layout_custom2[8] = RESTART
+layout_custom2[10] = PRISON
+layout_custom2[11] = PENALTY
+layout_custom2[12] = RESTART
+layout_custom2[13] = GAMBLE
 
 
 class Die:
@@ -196,6 +208,11 @@ class Board:
             extra_cost[np.where(self.layout == PRISON)] += 1
         return extra_cost
 
+    def roll_dice(self, pos, die_type):
+        nb_steps, does_trigger = Die(die_type).roll()
+        new_pos, in_prison = 14, False  # TODO
+        return new_pos, in_prison
+
 
 def markovDecision(layout: np.ndarray, circle: bool):
     """
@@ -206,10 +223,10 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
     board = Board(layout, circle)
 
-    def value_iteration(eps):
+    def value_iteration(eps=1e-6):
         policy = np.zeros(len(board.layout) - 1, dtype=int)
         costs = -np.ones(len(board.layout))
-        costs[-1] = 0
+        costs[-1] = 0  # goal
         delta = 2*eps
 
         # Looping until expected number of turns has converged for every state
@@ -219,11 +236,10 @@ def markovDecision(layout: np.ndarray, circle: bool):
             for state in range(len(policy)):
                 cost_per_die = {}
                 for die in board.dice:
-                    # cost to throw the dice is 1 (1 turn)
-                    action_cost = 1
+                    action_cost = 1  # cost to throw the dice is 1 (1 turn)
 
-                    # adding the cost to expectation of next turns costs (adding the extra cost of falling on a
-                    # prison trap if the normal or risky die is used)
+                    # Adding the cost to expectation of next turns costs
+                    # (+ adding the extra cost of falling on a prison trap if the normal or risky die is used)
                     cost_per_die[die] = action_cost + np.dot(board.P[die][state], costs + board.prison_extra_cost[die])
 
                 # computing the best action for this state
@@ -235,7 +251,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
             delta = np.max(np.abs(costs - v))
         return [costs[:-1], policy]
 
-    return value_iteration(1e-6)
+    return value_iteration()
 
 
 def test_markovDecision(layout, circle, name=""):
@@ -253,14 +269,41 @@ def test_markovDecision(layout, circle, name=""):
         f"Output dice is not a ndarray or is not of length 14\n\nDICE : {dice}"
 
     _format = "{:<7}"*14
-    print(f"\nSuccess {name}\n        {_format.format(*list(range(1,15)))}\nEXPEC : {_format.format(*np.around(expec, 2))}\nDICE  : {_format.format(*np.around(dice, 2))}")
+    print(f"\nSuccess {name} - Circle: {circle}"
+          f"\n        {_format.format(*list(range(1,15)))}"
+          f"\nEXPEC : {_format.format(*np.around(expec, 2))}"
+          f"\nDICE  : {_format.format(*np.around(dice, 2))}"
+          f"\n")
+
+    return result
+
+
+def compare_with_empirical_results(layout, circle, expectation, policy):
+    board = Board(layout, circle)
+    nb_rolls = []
+    for i in range(int(1e5)):  # TODO do on 1e7
+        if i % 100000 == 0:
+            print(f"{i/1e5}")
+
+        pos = 0
+        nb_rolls.append(0)
+        while pos != len(layout) - 1:
+            pos, in_prison = board.roll_dice(pos, policy[pos])
+            nb_rolls[-1] += 1 if not in_prison else 2
+    mean = np.mean(nb_rolls)
+    print(expectation[0], mean)
 
 
 if __name__ == '__main__':
-    test_markovDecision(layout_ORDINARY, True, "ORDINARY")
-    test_markovDecision(layout_PRISON, True, "PRISON")
-    test_markovDecision(layout_PENALTY, True, "PENALTY")
-    test_markovDecision(test_layout2, True, "RANDOM")
-    test_markovDecision(test_layout3, True, "CUSTOM")
+    # test_markovDecision(layout_ORDINARY, False, "ORDINARY")
+    # test_markovDecision(layout_PRISON, False, "PRISON")
+    # test_markovDecision(layout_PENALTY, False, "PENALTY")
+    # test_markovDecision(layout_random, False, "RANDOM")
+    # test_markovDecision(layout_custom1, False, "CUSTOM1")
+    result = test_markovDecision(layout_custom2, False, "CUSTOM2")
+    compare_with_empirical_results(layout_custom2, False, *result)
+
+    result = test_markovDecision(layout_custom2, True, "CUSTOM2")
+    compare_with_empirical_results(layout_custom2, True, *result)
 
     # Bonus : implement empirical tests to show convergence towards obtained results
