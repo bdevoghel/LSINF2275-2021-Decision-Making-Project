@@ -210,22 +210,8 @@ class Board:
         return extra_cost
 
     def roll_dice(self, pos, die_type):
-        nb_steps, does_trigger = Die(die_type).roll()
-        accessible_squares = [int(x[0]) for x in self.accessible_squares(pos, nb_steps)]
-        new_pos = np.random.choice(accessible_squares)
-        in_prison = False
-
-        square_type = self.layout[new_pos]
-        if does_trigger:
-            if square_type == RESTART:
-                new_pos = 0
-            elif square_type == PENALTY:
-                new_pos = self.apply_penalty(new_pos)
-            elif square_type == PRISON:
-                in_prison = True
-            elif square_type == GAMBLE:
-                new_pos = np.random.choice(range(len(self.layout)))
-        return new_pos, in_prison
+        new_pos = np.random.choice(np.arange(len(self.layout)), p=self.P[self.dice[die_type-1]][pos])
+        return new_pos, self.layout[new_pos] == PRISON and Die(die_type).roll()[1]
 
 
 def markovDecision(layout: np.ndarray, circle: bool):
@@ -256,7 +242,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
                 # Adding the cost to expectation of next turns costs
                 # (+ adding the extra cost of falling on a prison trap if the normal or risky die is used)
-                cost_per_die[die] = action_cost + board.prison_extra_cost[die][state] + np.dot(board.P[die][state], costs)
+                cost_per_die[die] = action_cost + np.dot(board.P[die][state], costs + board.prison_extra_cost[die])
 
             # computing the best action for this state
             cheapest_die = min(cost_per_die, key=cost_per_die.get)
@@ -293,7 +279,7 @@ def test_markovDecision(layout, circle, name=""):
     return result
 
 
-def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
+def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e5, verbose=True):
     board = Board(layout, circle)
     nb_rolls = []
     print(f"Simulating {int(nb_iter)} games with following"
@@ -324,17 +310,20 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
 
 if __name__ == '__main__':
     # test_markovDecision(layout_ORDINARY, False, "ORDINARY")
-    result = test_markovDecision(layout_PRISON, False, "PRISON")
-    test_empirically(layout_PRISON, False, *result)
+    # result = test_markovDecision(layout_PRISON, False, "PRISON")
+    # test_empirically(layout_PRISON, False, *result)
     # test_markovDecision(layout_PENALTY, False, "PENALTY")
     # test_markovDecision(layout_random, False, "RANDOM")
     # test_markovDecision(layout_custom1, False, "CUSTOM1")
 
-    # result = test_markovDecision(layout_custom2, False, "CUSTOM2")
-    # test_empirically(layout_custom2, False, *result)
+    result = test_markovDecision(layout_custom2, False, "CUSTOM2")
+    test_empirically(layout_custom2, False, *result)
 
-    # result = test_markovDecision(layout_custom2, True, "CUSTOM2")
-    # test_empirically(layout_custom2, True, *result)
+    result = test_markovDecision(layout_custom2, True, "CUSTOM2")
+    test_empirically(layout_custom2, True, *result)
+
+    test_empirically(layout_custom2, False, policy=np.array([3, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 3, 1, 1, 1]))
+    test_empirically(layout_custom2, True, policy=np.array([3, 3, 3, 3, 3, 2, 3, 3, 2, 1, 2, 1, 1, 1, 1]))
 
     # test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
     # test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
