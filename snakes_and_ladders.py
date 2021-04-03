@@ -92,18 +92,17 @@ class Board:
         self.circle = circle
 
         # transition matrices
-        self.P = {die: np.array(self.compute_transition_matrix(die)) for die in self.dice}
-
-        self.prison_extra_cost = {die: self.compute_prison_extra_cost(die) for die in self.dice}
+        self.P = {die: np.array(self.compute_transition_matrix(die, traps=True)) for die in self.dice}
+        self.P_no_traps = {die: np.array(self.compute_transition_matrix(die, traps=False)) for die in self.dice}
 
     def __repr__(self):
         return f"[Board:{list(self.layout)}-Circle:{self.circle}]"
 
-    def compute_transition_matrix(self, die: Die):
+    def compute_transition_matrix(self, die: Die, traps=True):
         """Computes transition matrix in canonical form for corresponding die"""
         tm = np.zeros((len(self.layout), len(self.layout)))
         for square in range(15):
-            tm[square, :] = self.compute_landing_proba(square, die)
+            tm[square, :] = self.compute_landing_proba(square, die, traps=traps)
         return tm
 
     def accessible_squares(self, pos, delta, budget=1.):
@@ -180,8 +179,7 @@ class Board:
         new_positions[idx] = positions[idx] + deltas[idx]
 
         idx = np.logical_and(positions == 2, deltas != 0)
-        if sum(idx) != 0:
-            new_positions[idx] = np.choose(np.random.randint(0, 2, sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
+        new_positions[idx] = np.choose(np.random.randint(0, 2, sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
 
         idx = np.logical_and(positions > 2, positions < 7)
         new_positions[idx] = positions[idx] + deltas[idx]
@@ -247,60 +245,38 @@ class Board:
 
         return new_states
 
-    def compute_landing_proba(self, start_position, die: Die):
+    def compute_landing_proba(self, start_position, die: Die, traps=True):
         """
         Returns vector with landing probabilities on each square
         :param start_position: must be in [0, 14]
         :param die: selected die
+        :param traps: if False we ignore all traps on the board
         """
         landing_proba = np.zeros(len(self.layout))
         for d in die.possible_steps:
             for state, budget in self.accessible_squares(start_position, d, die.steps_proba):
-                if self.layout[state] == ORDINARY:
+                if traps:
+                    if self.layout[state] == ORDINARY:
+                        landing_proba[state] += budget
+                    elif self.layout[state] == RESTART:
+                        landing_proba[0] += budget * die.trap_trigger_proba
+                        landing_proba[state] += budget * (1 - die.trap_trigger_proba)
+                    elif self.layout[state] == PENALTY:
+                        landing_proba[self.apply_penalty(state)] += budget * die.trap_trigger_proba
+                        landing_proba[state] += budget * (1 - die.trap_trigger_proba)
+                    elif self.layout[state] == PRISON:
+                        landing_proba[state] += budget
+                    elif self.layout[state] == GAMBLE:
+                        landing_proba += budget * die.trap_trigger_proba / len(self.layout)
+                        landing_proba[state] += budget * (1 - die.trap_trigger_proba)
+                else:
                     landing_proba[state] += budget
-                elif self.layout[state] == RESTART:
-                    landing_proba[0] += budget * die.trap_trigger_proba
-                    landing_proba[state] += budget * (1 - die.trap_trigger_proba)
-                elif self.layout[state] == PENALTY:
-                    landing_proba[self.apply_penalty(state)] += budget * die.trap_trigger_proba
-                    landing_proba[state] += budget * (1 - die.trap_trigger_proba)
-                elif self.layout[state] == PRISON:
-                    landing_proba[state] += budget
-                elif self.layout[state] == GAMBLE:
-                    landing_proba += budget * die.trap_trigger_proba / len(self.layout)
-                    landing_proba[state] += budget * (1 - die.trap_trigger_proba)
 
         assert np.abs(np.sum(landing_proba)-1) < 1e-15, "Sum of probabilities must be equal to 1"
         return landing_proba
 
-    def compute_prison_extra_cost(self, die):
-        extra_cost = np.zeros(len(self.layout))
-        if die.type == NORMAL:
-            extra_cost[np.where(self.layout == PRISON)] += 0.5
-        elif die.type == RISKY:
-            extra_cost[np.where(self.layout == PRISON)] += 1
-        return extra_cost
-
-    def roll_dice(self, pos, die_type):
-        nb_steps, does_trigger = Die(die_type).roll()
-        accessible_squares = [int(x[0]) for x in self.accessible_squares(pos, nb_steps)]
-        new_pos = np.random.choice(accessible_squares)
-        in_prison = False
-
-        square_type = self.layout[new_pos]
-        if does_trigger:
-            if square_type == RESTART:
-                new_pos = 0
-            elif square_type == PENALTY:
-                new_pos = self.apply_penalty(new_pos)
-            elif square_type == PRISON:
-                in_prison = True
-            elif square_type == GAMBLE:
-                new_pos = np.random.choice(range(len(self.layout)))
-        return new_pos, in_prison
-
     def apply_traps(self, states, does_trigger):
-        new_states = np.zeros(len(states), dtype=int)
+        new_states = -np.ones(len(states), dtype=int)
         extra_costs = np.zeros(len(states), dtype=float)
 
         square_types = self.layout[states]
@@ -338,7 +314,7 @@ class Board:
 
     def does_trigger_trap(self, die_types):
         does_trigger = np.zeros(len(die_types), dtype=bool)
-        does_trigger[die_types == RISKY]  = True
+        does_trigger[die_types == RISKY] = True
         does_trigger[die_types == NORMAL] = np.random.choice([True, False], sum(die_types == NORMAL), True)
         return does_trigger
 
@@ -360,6 +336,8 @@ def markovDecision(layout: np.ndarray, circle: bool):
     eps = 1e-6
     delta = eps + 1.
 
+    prisons = np.where(board.layout == PRISON)[0]
+
     # Looping until expected number of turns has converged for every state
     while delta > eps:
         # Keeping track of last iteration's expected number of turns for each state
@@ -367,11 +345,11 @@ def markovDecision(layout: np.ndarray, circle: bool):
         for state in range(len(policy)):
             cost_per_die = {}
             for die in board.dice:
-                action_cost = 1.  # cost to throw the dice is 1 (1 turn)
+                # cost to throw the dice is 1 (1 turn) + expected extra cost of falling on a prison with this die
+                action_cost = 1. + np.sum(board.P_no_traps[die][state][prisons] * die.trap_trigger_proba)
 
-                # Adding the cost to expectation of next turns costs
-                # (+ adding the extra cost of falling on a prison trap if the normal or risky die is used)
-                cost_per_die[die] = action_cost + board.P[die][state] @ (costs + board.prison_extra_cost[die])
+                # Adding the cost to expectation of next turn costs
+                cost_per_die[die] = action_cost + board.P[die][state] @ costs
 
             # computing the best action for this state
             cheapest_die = min(cost_per_die, key=cost_per_die.get)
@@ -408,36 +386,7 @@ def test_markovDecision(layout, circle, name=""):
     return result
 
 
-def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e6, verbose=True):
-    board = Board(layout, circle)
-    nb_rolls = []
-    print(f"Simulating {int(nb_iter)} games with following"
-          f"\n   - layout : {layout}, circle={circle}"
-          f"\n   - policy : {policy if policy is not None else 'random die selection'}")
-    if verbose:
-        print(f" - Progress : {0:>2}%", end='')
-    for i in range(int(nb_iter)):
-        if verbose:
-            if i % (nb_iter / 20) == 0:
-                print(f"\b\b\b{int(100 * i / nb_iter):>2}%", end='')
-            if i == nb_iter - 1:
-                print("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", end='')
-
-        pos = 0
-        nb_rolls.append(0)
-        while pos != len(layout) - 1:
-            pos, in_prison = board.roll_dice(pos, policy[pos] if policy is not None else np.random.randint(RISKY) + 1)
-            nb_rolls[-1] += 1 if not in_prison else 2
-
-    print(f"Expectation results : " +
-          (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
-          f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} "
-          f"| σ = {np.std(nb_rolls):>7.4f} "
-          f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
-          f"\n")
-
-
-def test_empirically_alt(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
+def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
     board = Board(layout, circle)
     nb_rolls = np.zeros(int(nb_iter))
     states = np.zeros(int(nb_iter), dtype=int)
@@ -448,34 +397,21 @@ def test_empirically_alt(layout, circle, expectation=None, policy=None, nb_iter=
     print(f"Simulating {int(nb_iter)} games with following"
           f"\n   - layout : {layout}, circle={circle}"
           f"\n   - policy : {policy if policy is not None else 'random die selection'}")
-    if verbose:
-        print(f" - Progress : {0:>2}%", end='')
 
     while np.sum(not_done) != 0:
-        if verbose:
-            if (nb_iter - np.sum(not_done)) % (nb_iter / 20) == 0:
-                print(f"\b\b\b{int(100 * (nb_iter - np.sum(not_done)) / nb_iter):>2}%", end='')
-            if (nb_iter - np.sum(not_done)) == nb_iter - 1:
-                print("\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b", end='')
 
         states_left = states[not_done]
 
         trap_trigger = board.does_trigger_trap(policy[states_left])
 
-        # Using random realizations of the game
         nb_steps = board.roll_n_dice(states_left, policy[states_left])
         new_states = board.apply_delta(states_left, nb_steps)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
-        # Using pre-computed transition probabilities
-        # new_states = [np.random.choice(np.arange(len(board.layout)), p=board.P[board.dice[die_type-1]][pos]) for pos, die_type in zip(states_left, policy[states_left])]
-        # extra_costs = np.zeros(len(states_left))
-        # extra_costs[np.logical_and(trap_trigger, board.layout[new_states] == PRISON)] = 1.
-
         nb_rolls[not_done] += 1. + extra_costs
 
         states[not_done] = new_states
-        not_done[states == len(board.layout)-1] = False
+        not_done[states == len(board.layout) - 1] = False
 
     print(f"Expectation results : " +
           (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
@@ -494,13 +430,10 @@ if __name__ == '__main__':
     # test_markovDecision(layout_custom1, False, "CUSTOM1")
 
     result = test_markovDecision(layout_custom2, False, "CUSTOM2")
-    test_empirically_alt(layout_custom2, False, *result, nb_iter=1e4)
-
-    result = (None, np.array([3, 3, 3, 3, 3, 2, 3, 3, 3, 3, 2, 3, 1, 1]))
-    test_empirically_alt(layout_custom2, False, *result, nb_iter=1e4)
+    test_empirically(layout_custom2, False, *result, nb_iter=1e7)
 
     result = test_markovDecision(layout_custom2, True, "CUSTOM2")
-    test_empirically_alt(layout_custom2, True, *result, nb_iter=1e4)
+    test_empirically(layout_custom2, True, *result, nb_iter=1e7)
 
     # test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
     # test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
