@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 """
 SQUARES : 
@@ -65,8 +66,8 @@ class Die:
         self.type = die_type
         self.possible_steps = list(range(self.type + 1))
         self.steps_proba = 1 / len(self.possible_steps)
-        self.possible_trap_trigger = [True] if self.type == 3 else ([False] if self.type == 1 else [True, False])
-        self.trap_trigger_proba = 1 if self.type == 3 else (0 if self.type == 1 else 0.5)
+        self.possible_trap_trigger = [True] if self.type == RISKY else ([False] if self.type == SECURITY else [True, False])
+        self.trap_trigger_proba = 1 if self.type == RISKY else (0 if self.type == SECURITY else 0.5)
 
     def roll(self, times=1):
         """Returns number of steps to advance and tells if trap triggers or not"""
@@ -75,7 +76,7 @@ class Die:
         return (nb_steps, does_trigger) if times > 1 else (nb_steps[0], does_trigger[0])
 
     def get_all_possible_roll_combinations(self):
-        return [item for sublist in [[(steps, trigger) for steps in self.possible_steps] for trigger in self.possible_trap_trigger] for item in sublist]
+        return list(itertools.product(self.possible_steps, self.possible_trap_trigger))
 
     def __hash__(self):
         return self.type
@@ -100,9 +101,7 @@ class Board:
 
     def compute_transition_matrix(self, die: Die):
         """Computes transition matrix in canonical form for corresponding die"""
-        tm = []
-        for square in range(15):
-            tm.append(self.compute_landing_proba(square, die))
+        tm = [self.compute_landing_proba(square, die) for square in range(15)]
         return tm
 
     def accessible_squares(self, pos, delta, budget=1.):
