@@ -16,50 +16,8 @@ DICE :
 - risky    : 0/1/2/3 - 100% chance to trigger trap
 """
 
-SECURITY = 1
-NORMAL = 2
-RISKY = 3
-
-ORDINARY = 0
-RESTART = 1
-PENALTY = 2
-PRISON = 3
-GAMBLE = 4
-
-# only ORDINARY squares, no traps
-layout_ORDINARY = np.array([ORDINARY for _ in range(15)])
-
-# only PENALTY (go back 3) traps
-layout_PENALTY = np.ones(15) * PENALTY
-layout_PENALTY[[0, -1]] = 0  # start and goal squares must be ordinary
-
-# only PRISON (stay one turn) traps
-layout_PRISON = np.ones(15) * PRISON
-layout_PRISON[[0, -1]] = 0  # start and goal squares must be ordinary
-
-# random initialized traps
-layout_random = np.random.randint(low=0, high=5, size=15)
-layout_random[[0, -1]] = 0  # start and goal squares must be ordinary
-
-# custom layout
-layout_custom1 = np.array([ORDINARY for _ in range(15)])
-layout_custom1[8] = RESTART
-layout_custom1[7] = GAMBLE
-layout_custom1[12] = PENALTY
-
-# custom layout
-layout_custom2 = np.array([ORDINARY for _ in range(15)])
-layout_custom2[1] = GAMBLE
-layout_custom2[2] = RESTART
-layout_custom2[3] = GAMBLE
-layout_custom2[4] = PENALTY
-layout_custom2[6] = PRISON
-layout_custom2[8] = RESTART
-layout_custom2[10] = PRISON
-layout_custom2[11] = PENALTY
-layout_custom2[12] = RESTART
-layout_custom2[13] = GAMBLE
-
+SECURITY, NORMAL, RISKY = 1, 2, 3
+ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
 
 class Die:
     def __init__(self, die_type):
@@ -444,24 +402,3 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
           f"| σ = {np.std(nb_rolls):>7.4f} "
           f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
           f"\n")
-
-
-if __name__ == '__main__':
-    # test_markovDecision(layout_ORDINARY, False, "ORDINARY")
-    # result = test_markovDecision(layout_PRISON, False, "PRISON")
-    # test_empirically(layout_PRISON, False, *result)
-    # test_markovDecision(layout_PENALTY, False, "PENALTY")
-    # test_markovDecision(layout_random, False, "RANDOM")
-    # test_markovDecision(layout_custom1, False, "CUSTOM1")
-
-    result = test_markovDecision(layout_custom2, False, "CUSTOM2")
-    test_empirically(layout_custom2, False, *result, nb_iter=1e7)
-
-    result = test_markovDecision(layout_custom2, True, "CUSTOM2")
-    test_empirically(layout_custom2, True, *result, nb_iter=1e7)
-
-    # test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
-    # test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
-    # test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
-    # test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY) + 1 for _ in range(15)]))
-    # test_empirically(layout_custom2, True, policy=None)
