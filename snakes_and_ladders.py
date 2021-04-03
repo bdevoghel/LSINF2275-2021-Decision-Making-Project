@@ -172,60 +172,81 @@ class Board:
             print("ERROR - Not possible to compute accessible squares")
 
     def apply_delta(self, positions, deltas):
-        new_positions = np.zeros(len(positions), dtype=int)
+        new_positions = -np.ones(len(positions), dtype=int)
 
+        # before intersection
         idx = positions < 2
         new_positions[idx] = positions[idx] + deltas[idx]
 
+        # at intersection but not moving
         idx = np.logical_and(positions == 2, deltas == 0)
-        new_positions[idx] = positions[idx] + deltas[idx]
+        new_positions[idx] = positions[idx]
 
+        # at intersection and moving
         idx = np.logical_and(positions == 2, deltas != 0)
-        if sum(idx) != 0:
-            new_positions[idx] = np.choose(np.random.randint(0, 2, sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
+        new_positions[idx] = np.choose(np.random.randint(0, 2, sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
 
+        # --- SLOW LANE ---
+        # 'jump' is the jump from 9 to 14, when slow and fast lanes meet back
+
+        # before jump
         idx = np.logical_and(positions > 2, positions < 7)
         new_positions[idx] = positions[idx] + deltas[idx]
 
+        # from 7 with no jump
+        idx = np.logical_and(positions == 7, deltas < 3)
+        new_positions[idx] = positions[idx] + deltas[idx]
+        
+        # from 7 with jump
         idx = np.logical_and(positions == 7, deltas == 3)
         new_positions[idx] = 14
         
-        idx = np.logical_and(positions == 7, deltas != 3)
-        new_positions[idx] = positions[idx] + deltas[idx]
-
+        # from 8 with no jump
         idx = np.logical_and(positions == 8, deltas < 2)
         new_positions[idx] = positions[idx] + deltas[idx]
 
+        # from 8 with jump
         idx = np.logical_and(positions == 8, deltas == 2)
         new_positions[idx] = 14
 
-        idx = np.logical_and(positions == 8, deltas == 3)
-        new_positions[idx] = 0 if self.circle else 14
+        # from 8 with overshoot
+        idx = np.logical_and(positions == 8, deltas > 2)
+        new_positions[idx] = deltas[idx] - 3 if self.circle else 14
         
+        # from 9 without jump
         idx = np.logical_and(positions == 9, deltas < 1)
         new_positions[idx] = positions[idx] + deltas[idx]
         
+        # from 9 with jump
         idx = np.logical_and(positions == 9, deltas == 1)
         new_positions[idx] = 14
         
+        # from 9 with overshoot
         idx = np.logical_and(positions == 9, deltas > 1)
         new_positions[idx] = deltas[idx] - 2 if self.circle else 14
         
+        # --- FAST LANE ---
+        # before possible overshoot
         idx = np.logical_and(positions > 9, positions < 12)
         new_positions[idx] = positions[idx] + deltas[idx]
         
+        # from 12 without overshoot
         idx = np.logical_and(positions == 12, deltas < 3)
         new_positions[idx] = positions[idx] + deltas[idx]
         
-        idx = np.logical_and(positions == 12, deltas == 3)
+        # from 12 with overshoot
+        idx = np.logical_and(positions == 12, deltas >= 3)
         new_positions[idx] = deltas[idx] - 3 if self.circle else 14
         
+        # from 13 without overshoot
         idx = np.logical_and(positions == 13, deltas < 2)
         new_positions[idx] = positions[idx] + deltas[idx]
         
+        # from 13 with overshoot
         idx = np.logical_and(positions == 13, deltas >= 2)
         new_positions[idx] = deltas[idx] - 2 if self.circle else 14
         
+        # if already at the end
         idx = positions == 14
         new_positions[idx] = 14
         
@@ -238,11 +259,13 @@ class Board:
             return max(0, pos - 3)
 
     def apply_n_penalty(self, states):
-        new_states = np.zeros(len(states), dtype=int)
+        new_states = -np.ones(len(states), dtype=int)
 
+        # going back to before intersection
         idx = np.logical_and(states >= 10, states <= 12)
         new_states[idx] = states[idx] - 7 - 3
 
+        # normal
         idx = np.logical_or(states < 10, states > 12)
         new_states[idx] = np.maximum(np.zeros(sum(idx), dtype=int), states[idx] - 3)
 
