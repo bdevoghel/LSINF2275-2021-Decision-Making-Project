@@ -93,7 +93,7 @@ def compare_models(layout, circle=False) :
 def compare_policies(policies, layout, circle=False) :
     """compare different policies with one another and with the optimal policy"""
     _, optimal_policy = test_markov(layout, circle, write_file=False)
-    if optimal_policy not in policies : policies.append(optimal_policy)
+    policies.append(optimal_policy)
 
     # test for each policy
     for policy in policies:
@@ -107,7 +107,8 @@ def compare_policies(policies, layout, circle=False) :
 if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     #compare_models(layout_custom2, True)
-    suboptimal = get_strategy(layout_custom2, False)
+    suboptimal = get_strategy(layout_custom2, True)
+    compare_policies([suboptimal], layout_custom2, True)
 
     f.close()
 
