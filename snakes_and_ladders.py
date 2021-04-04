@@ -345,7 +345,7 @@ def markovDecision(layout: np.ndarray, circle: bool):
     return [costs[:-1], policy]
 
 
-def test_markovDecision(layout, circle, name=""):
+def test_markovDecision(layout, circle, name="", verbose=False):
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
 
@@ -360,16 +360,17 @@ def test_markovDecision(layout, circle, name=""):
         f"Output dice is not a ndarray or is not of length 14\n\nDICE       : {dice}"
 
     _format = "{:<7}" * 14
-    print(f"\nSuccess {name} - Circle: {circle}"
-          f"\n              {_format.format(*list(range(1, 15)))}"
-          f"\nEXPECTATION : {_format.format(*np.around(expectation, 2))}"
-          f"\nDICE        : {_format.format(*np.around(dice, 2))}"
-          f"\n")
+    if verbose :
+        print(f"\nSuccess {name} - Circle: {circle}"
+              f"\n              {_format.format(*list(range(1, 15)))}"
+              f"\nEXPECTATION : {_format.format(*np.around(expectation, 2))}"
+              f"\nDICE        : {_format.format(*np.around(dice, 2))}"
+              f"\n")
 
     return result
 
 
-def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=True):
+def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=False):
     board = Board(layout, circle)
     nb_rolls = np.zeros(int(nb_iter))
     states = np.zeros(int(nb_iter), dtype=int)
@@ -377,9 +378,10 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
 
     policy = policy if policy is not None else np.random.randint(SECURITY, RISKY+1, len(board.layout)-1)
 
-    print(f"Simulating {int(nb_iter)} games with following"
-          f"\n   - layout : {layout}, circle={circle}"
-          f"\n   - policy : {policy if policy is not None else 'random die selection'}")
+    if verbose :
+        print(f"Simulating {int(nb_iter)} games with following"
+              f"\n   - layout : {layout}, circle={circle}"
+              f"\n   - policy : {policy if policy is not None else 'random die selection'}")
 
     while np.sum(not_done) != 0:
 
@@ -396,9 +398,10 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
         states[not_done] = new_states
         not_done[states == len(board.layout) - 1] = False
 
-    print(f"Expectation results : " +
-          (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
-          f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} "
-          f"| σ = {np.std(nb_rolls):>7.4f} "
-          f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
-          f"\n")
+    if verbose :
+        print(f"Expectation results : " +
+              f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "" +
+              f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} "
+              f"| σ = {np.std(nb_rolls):>7.4f} "
+              f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
+              f"\n")

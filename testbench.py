@@ -1,8 +1,22 @@
 import snakes_and_ladders as SaL
+from snakes_and_ladders import SECURITY, NORMAL, RISKY
+from snakes_and_ladders import ORDINARY, RESTART, PENALTY, PRISON, GAMBLE
 import numpy as np
 
-SECURITY, NORMAL, RISKY = 1, 2, 3
-ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
+# -----------------------------------------------------------------------------
+# Testing constants
+# -----------------------------------------------------------------------------
+
+# print information to standard output
+verbose = True
+# number of iterations for empirical tests
+nb_iterations = 1e5
+# filename to write results
+filename = "results.txt"
+
+# -----------------------------------------------------------------------------
+# Layouts
+# -----------------------------------------------------------------------------
 
 # only ORDINARY squares, no traps
 layout_ordinary = np.ones(15) * ORDINARY
@@ -28,10 +42,29 @@ layout_custom1 = np.ones(15) * ORDINARY
 layout_custom1[[7, 8, 12]] = GAMBLE, RESTART, PENALTY
 
 # custom layout
-layout_custom2 = np.array([ ORDINARY,   GAMBLE,     RESTART,    GAMBLE,     PENALTY, 
-                            ORDINARY,   PRISON,     ORDINARY,   RESTART,    ORDINARY, 
-                            PRISON,     PENALTY,    RESTART,    GAMBLE,     ORDINARY])
+layout_custom2 = np.array(
+           [ORDINARY,   GAMBLE,     RESTART,    GAMBLE,     PENALTY, 
+            ORDINARY,   PRISON,     ORDINARY,   RESTART,    ORDINARY, 
+            PRISON,     PENALTY,    RESTART,    GAMBLE,     ORDINARY])
 
+# -----------------------------------------------------------------------------
+# Functions
+# -----------------------------------------------------------------------------
+
+def test_markov(layout, circle=False, name="") :
+    """runs the markov decision tests, prints in the output file and returns 
+       the optimal dice to use"""
+    results = SaL.test_markovDecision(layout, circle, name, verbose)
+    # TODO print results to file
+    return results
+
+def test_empirical() :
+    """runs the empirical tests and prints in the output file"""
+    # TODO
+
+# -----------------------------------------------------------------------------
+# Main
+# -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
     # SaL.test_markovDecision(layout_ordinary, False, "ORDINARY")
@@ -41,11 +74,11 @@ if __name__ == '__main__':
     # SaL.test_markovDecision(layout_random, False, "RANDOM")
     # SaL.test_markovDecision(layout_custom1, False, "CUSTOM1")
 
-    result = SaL.test_markovDecision(layout_custom2, False, "CUSTOM2")
-    SaL.test_empirically(layout_custom2, False, *result, nb_iter=1e5)
+    result = SaL.test_markovDecision(layout_custom2, False, "CUSTOM2", verbose=True)
+    SaL.test_empirically(layout_custom2, False, *result, nb_iter=1e5, verbose=True)
 
-    result = SaL.test_markovDecision(layout_custom2, True, "CUSTOM2")
-    SaL.test_empirically(layout_custom2, True, *result, nb_iter=1e5)
+    result = SaL.test_markovDecision(layout_custom2, True, "CUSTOM2", verbose=True)
+    SaL.test_empirically(layout_custom2, True, *result, nb_iter=1e5, verbose=True)
 
     # SaL.test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
     # SaL.test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
