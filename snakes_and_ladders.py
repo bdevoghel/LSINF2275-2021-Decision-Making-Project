@@ -367,7 +367,7 @@ def test_markovDecision(layout, circle, name="", verbose=False):
               f"\nDICE        : {_format.format(*np.around(dice, 2))}"
               f"\n")
 
-    return result
+    return expectation, dice
 
 
 def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=False):
@@ -397,11 +397,15 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
 
         states[not_done] = new_states
         not_done[states == len(board.layout) - 1] = False
+    
+    empiric_result = np.mean(nb_rolls)
 
     if verbose :
-        print(f"Expectation results : " +
-              f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "" +
-              f"\n   - Empiric       : {np.mean(nb_rolls):>7.4f} "
-              f"| σ = {np.std(nb_rolls):>7.4f} "
-              f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
-              f"\n")
+        print( f"Expectation results : " +
+              (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
+               f"\n   - Empiric       : {empiric_result:>7.4f} "
+               f"| σ = {np.std(nb_rolls):>7.4f} "
+               f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
+               f"\n")
+        
+    return empiric_result, policy

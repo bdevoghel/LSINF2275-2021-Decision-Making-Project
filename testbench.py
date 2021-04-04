@@ -13,6 +13,8 @@ verbose = True
 nb_iterations = 1e5
 # filename to write results
 filename = "results.txt"
+# open file in append mode
+f = open(filename, 'a')
 
 # -----------------------------------------------------------------------------
 # Layouts
@@ -51,37 +53,78 @@ layout_custom2 = np.array(
 # Functions
 # -----------------------------------------------------------------------------
 
-def test_markov(layout, circle=False, name="") :
+def test_markov(layout, circle=False, write_file=True) :
     """runs the markov decision tests, prints in the output file and returns 
        the optimal dice to use"""
-    results = SaL.test_markovDecision(layout, circle, name, verbose)
-    # TODO print results to file
-    return results
+    markov_exp, dice = SaL.test_markovDecision(layout, circle, verbose)
+    # write
+    if write_file :
+        print("markov", file=f)
+        print(f"    layout : {layout}", file=f)
+        print(f"    circle : {circle}", file=f)
+        print(f"    dice : {dice}", file=f)
+        print(f"    expectation : {markov_exp[0]:>7.4f}", file=f)
+        print("", file=f)
 
-def test_empirical() :
+    return markov_exp, dice
+
+def test_empirical(layout, circle=False, expectation=None, policy=None, write_file=True) :
     """runs the empirical tests and prints in the output file"""
-    # TODO
+    empiric_exp, dice = SaL.test_empirically(layout, circle, expectation, policy, nb_iterations, verbose)
+    # write
+    if write_file :
+        print("empiric", file=f)
+        print(f"    layout : {layout}", file=f)
+        print(f"    circle : {circle}", file=f)
+        print(f"    iterations : {int(nb_iterations)}", file=f)
+        print(f"    dice : {dice}", file=f)
+        print(f"    expectation : {empiric_exp:>7.4f}", file=f)
+        print("", file=f)
+
+    return empiric_exp, dice
+
+def compare_models(layout, circle=False) :
+    markov_exp, markov_dice = test_markov(layout, circle)
+    _, _ = test_empirical(layout, circle, markov_exp, markov_dice)
+
+def compare_policies(policies, layout, circle=False) :
+    """compare different policies with one another and with the optimal policy"""
+    _, optimal_policy = test_markov(layout, circle, write_file=False)
+    if optimal_policy not in policies : policies.append(optimal_policy)
+
+    # test for each policy
+    for policy in policies :
+        empiric_exp, _ = test_empirical(layout, circle, policy=policy)
+        if verbose : print(f"expectation of {empiric_exp:>7.4f} with policy {policy}")
 
 # -----------------------------------------------------------------------------
 # Main
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # SaL.test_markovDecision(layout_ordinary, False, "ORDINARY")
-    # result = SaL.test_markovDecision(layout_prison, False, "PRISON")
-    # SaL.test_empirically(layout_prison, False, *result)
-    # SaL.test_markovDecision(layout_penalty, False, "PENALTY")
-    # SaL.test_markovDecision(layout_random, False, "RANDOM")
-    # SaL.test_markovDecision(layout_custom1, False, "CUSTOM1")
+    compare_models(layout_custom2, False)
+    compare_models(layout_custom2, True)
+    f.close()
 
-    result = SaL.test_markovDecision(layout_custom2, False, "CUSTOM2", verbose=True)
-    SaL.test_empirically(layout_custom2, False, *result, nb_iter=1e5, verbose=True)
 
-    result = SaL.test_markovDecision(layout_custom2, True, "CUSTOM2", verbose=True)
-    SaL.test_empirically(layout_custom2, True, *result, nb_iter=1e5, verbose=True)
+# -----------------------------------------------------------------------------
+# OLD STUFF
+# -----------------------------------------------------------------------------
+# # SaL.test_markovDecision(layout_ordinary, False, "ORDINARY")
+# # result = SaL.test_markovDecision(layout_prison, False, "PRISON")
+# # SaL.test_empirically(layout_prison, False, *result)
+# # SaL.test_markovDecision(layout_penalty, False, "PENALTY")
+# # SaL.test_markovDecision(layout_random, False, "RANDOM")
+# # SaL.test_markovDecision(layout_custom1, False, "CUSTOM1")
 
-    # SaL.test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
-    # SaL.test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
-    # SaL.test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
-    # SaL.test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY) + 1 for _ in range(15)]))
-    # SaL.test_empirically(layout_custom2, True, policy=None)
+# result = SaL.test_markovDecision(layout_custom2, False, "CUSTOM2", verbose=True)
+# SaL.test_empirically(layout_custom2, False, *result, nb_iter=1e5, verbose=True)
+
+# result = SaL.test_markovDecision(layout_custom2, True, "CUSTOM2", verbose=True)
+# SaL.test_empirically(layout_custom2, True, *result, nb_iter=1e5, verbose=True)
+
+# # SaL.test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
+# # SaL.test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
+# # SaL.test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
+# # SaL.test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY) + 1 for _ in range(15)]))
+# # SaL.test_empirically(layout_custom2, True, policy=None)
