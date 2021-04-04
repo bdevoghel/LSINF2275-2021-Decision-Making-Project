@@ -1,6 +1,7 @@
 import snakes_and_ladders as SaL
 from snakes_and_ladders import SECURITY, NORMAL, RISKY
 from snakes_and_ladders import ORDINARY, RESTART, PENALTY, PRISON, GAMBLE
+from suboptimal import get_strategy
 import numpy as np
 
 # -----------------------------------------------------------------------------
@@ -83,9 +84,11 @@ def test_empirical(layout, circle=False, expectation=None, policy=None, write_fi
 
     return empiric_exp, dice
 
+
 def compare_models(layout, circle=False) :
     markov_exp, markov_dice = test_markov(layout, circle)
     _, _ = test_empirical(layout, circle, markov_exp, markov_dice)
+
 
 def compare_policies(policies, layout, circle=False) :
     """compare different policies with one another and with the optimal policy"""
@@ -93,7 +96,7 @@ def compare_policies(policies, layout, circle=False) :
     if optimal_policy not in policies : policies.append(optimal_policy)
 
     # test for each policy
-    for policy in policies :
+    for policy in policies:
         empiric_exp, _ = test_empirical(layout, circle, policy=policy)
         if verbose : print(f"expectation of {empiric_exp:>7.4f} with policy {policy}")
 
@@ -102,8 +105,10 @@ def compare_policies(policies, layout, circle=False) :
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    compare_models(layout_custom2, False)
-    compare_models(layout_custom2, True)
+    #compare_models(layout_custom2, False)
+    #compare_models(layout_custom2, True)
+    suboptimal = get_strategy(layout_custom2, False)
+
     f.close()
 
 

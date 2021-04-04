@@ -1,6 +1,4 @@
 import numpy as np
-import itertools
-import time
 
 """
 SQUARES : 
@@ -33,9 +31,6 @@ class Die:
         nb_steps = np.random.randint(low=0, high=self.type + 1, size=times)
         does_trigger = [False if rand > self.type - 1.5 else True for rand in np.random.rand(times)]
         return (nb_steps, does_trigger) if times > 1 else (nb_steps[0], does_trigger[0])
-
-    def get_all_possible_roll_combinations(self):
-        return list(itertools.product(self.possible_steps, self.possible_trap_trigger))
 
     def __hash__(self):
         return self.type
@@ -141,7 +136,7 @@ class Board:
 
         # at intersection and moving
         idx = np.logical_and(positions == 2, deltas != 0)
-        new_positions[idx] = np.choose(np.random.randint(0, 2, sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
+        new_positions[idx] = np.choose(np.random.randint(0, 2, np.sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
 
         # --- SLOW LANE ---
         # 'jump' is the jump from 9 to 14, when slow and fast lanes meet back
@@ -153,7 +148,7 @@ class Board:
         # from 7 with no jump
         idx = np.logical_and(positions == 7, deltas < 3)
         new_positions[idx] = positions[idx] + deltas[idx]
-        
+
         # from 7 with jump
         idx = np.logical_and(positions == 7, deltas == 3)
         new_positions[idx] = 14
@@ -313,7 +308,6 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
     policy = np.zeros(len(board.layout) - 1, dtype=int)
     costs = np.zeros(len(board.layout), dtype=float)
-    # costs[-1] = 0  # goal
 
     # VALUE ITERATION ALGORITHM
     eps = 1e-6
@@ -370,26 +364,25 @@ def test_markovDecision(layout, circle, name="", verbose=False):
     return expectation, dice
 
 
-def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4, verbose=False):
+def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7, verbose=False):
     board = Board(layout, circle)
     nb_rolls = np.zeros(int(nb_iter))
     states = np.zeros(int(nb_iter), dtype=int)
     not_done = np.ones(int(nb_iter), dtype=bool)
 
-    policy = policy if policy is not None else np.random.randint(SECURITY, RISKY+1, len(board.layout)-1)
-
-    if verbose :
+    if verbose:
         print(f"Simulating {int(nb_iter)} games with following"
               f"\n   - layout : {layout}, circle={circle}"
               f"\n   - policy : {policy if policy is not None else 'random die selection'}")
 
     while np.sum(not_done) != 0:
-
         states_left = states[not_done]
 
-        trap_trigger = board.does_trigger_trap(policy[states_left])
+        dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left))
 
-        nb_steps = board.roll_n_dice(states_left, policy[states_left])
+        trap_trigger = board.does_trigger_trap(dice)
+
+        nb_steps = board.roll_n_dice(states_left, dice)
         new_states = board.apply_delta(states_left, nb_steps)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
@@ -400,7 +393,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e4,
     
     empiric_result = np.mean(nb_rolls)
 
-    if verbose :
+    if verbose:
         print( f"Expectation results : " +
               (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
                f"\n   - Empiric       : {empiric_result:>7.4f} "
