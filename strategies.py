@@ -1,4 +1,3 @@
-from testbench import compare_policies
 import numpy as np
 from snakes_and_ladders import SECURITY, NORMAL, RISKY
 from snakes_and_ladders import Board
