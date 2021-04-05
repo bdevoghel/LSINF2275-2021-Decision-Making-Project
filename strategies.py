@@ -23,10 +23,17 @@ def risky(layout, circle) :
 
     return "risky", policy
 
+def normal(layout, circle) :
+    policy = np.ones(len(layout), dtype=int) * NORMAL
+
+    return "normal", policy
+
 def secure(layout, circle) :
     policy = np.ones(len(layout), dtype=int) * SECURITY
 
     return "secure", policy
+
+
 
 def random_policy(layout, circle) :
     policy = np.random.randint(SECURITY, RISKY+1, len(layout), dtype=int)
@@ -80,7 +87,7 @@ def mean_dist_to_objective(states):
 
 # add strategies to the list if you want them to be executed in the testbench
 # each strategy should return a name and a np.array of dice (integers)
-strategies = [risky, secure, suboptimal]
+strategies = [risky, normal, secure, suboptimal]
 
 def get_policies(layout, circle) :
     policies = []

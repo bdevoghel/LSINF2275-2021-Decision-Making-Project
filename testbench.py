@@ -3,6 +3,7 @@ from snakes_and_ladders import SECURITY, NORMAL, RISKY
 from snakes_and_ladders import ORDINARY, RESTART, PENALTY, PRISON, GAMBLE
 import strategies
 import numpy as np
+import threading
 from layouts import *
 
 # -----------------------------------------------------------------------------
@@ -54,6 +55,11 @@ def test_empirical(layout, circle=False, expectation=None, policy=None, name="em
         print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), empiric_exp))}", file=f)
         print("", file=f)
 
+    if verbose >= 1:
+        print(f"\nName : {name}")
+        print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), empiric_exp))}")
+        print(f"    policy : {list(dice)}" if dice is not None else f"    policy : pure random")
+
     return empiric_exp, dice
 
 
@@ -68,6 +74,8 @@ def compare_policies(policies, layout, circle=False, add_pure_random=False) :
     policies.append(("optimal", optimal_policy))
     if add_pure_random: policies.append(("pure random", None))
 
+    threads = []
+
     # test for each policy
     for policy in policies:
         # if a policy is a tuple of name, dice
@@ -76,12 +84,16 @@ def compare_policies(policies, layout, circle=False, add_pure_random=False) :
         # if a policy is only a list of dice
         elif len(policy) == 15 :
             name, dice = None, policy
-        
-        empiric_exp, _ = test_empirical(layout, circle, policy=dice, name=name)
-        if verbose >= 1 : 
-            print(f"\nName : {name}")
-            print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), empiric_exp))}")
-            print(f"    policy : {list(dice)}" if dice is not None else f"    policy : pure random")
+        threads.append(threading.Thread(target=test_empirical, args=(layout, circle), kwargs={'policy': dice, 'name':name}))
+        # empiric_exp, _ = test_empirical(layout, circle, policy=dice, name=name)
+
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
+
 
 # -----------------------------------------------------------------------------
 # Main
