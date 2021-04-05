@@ -1,4 +1,6 @@
-# LSINF2275 - Data Mining and Decision Making - Project 1 : Snakes and Ladders
+# LSINF2275 - Project 1 : Snakes and Ladders
+
+> TL;DR : `markovDecision(layout, circle)` can be imported from [snakes_and_ladders.py](/snakes_and_ladders.py) and is confrom with the project statement
 
 Group Members: 
 - Augustin d'Oultremont - 2239 1700 - INFO
