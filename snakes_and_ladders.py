@@ -19,14 +19,17 @@ ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
 
 inf = -1
 
+
 class Die:
     """Structure for dice"""
+
     def __init__(self, die_type):
         """Die type must be SECURITY or NORMAL or RISKY"""
         self.type = die_type
         self.possible_steps = list(range(self.type + 1))
         self.steps_proba = 1 / len(self.possible_steps)
-        self.possible_trap_trigger = [True] if self.type == RISKY else ([False] if self.type == SECURITY else [True, False])
+        self.possible_trap_trigger = [True] if self.type == RISKY else (
+            [False] if self.type == SECURITY else [True, False])
         self.trap_trigger_proba = 1 if self.type == RISKY else (0 if self.type == SECURITY else 0.5)
 
     def roll(self, times=1):
@@ -43,7 +46,7 @@ class Die:
 
 
 class Board:
-    def __init__(self, layout: list, circle: bool):
+    def __init__(self, layout: np.ndarray, circle: bool):
         """Initializes a board based on the layout"""
         self.dice = [Die(die_type=dt) for dt in [SECURITY, NORMAL, RISKY]]
         self.layout = layout
@@ -69,14 +72,14 @@ class Board:
         according to the squares' respective landing probabilities
         """
         if pos < 2:
-            return [(pos+delta, budget)]
+            return [(pos + delta, budget)]
         elif pos == 2:
             if delta == 0:
-                return [(pos+delta, budget)]
+                return [(pos + delta, budget)]
             else:
-                return [(pos+delta, budget/2), (pos+7+delta, budget/2)]  # lane split
+                return [(pos + delta, budget / 2), (pos + 7 + delta, budget / 2)]  # lane split
         elif pos < 7:
-            return [(pos+delta, budget)]
+            return [(pos + delta, budget)]
         elif pos == 7:
             if delta == 3:
                 return [(14, budget)]
@@ -105,7 +108,7 @@ class Board:
                 else:
                     return [(14, budget)]
         elif pos < 12:
-            return [(pos+delta, budget)]
+            return [(pos + delta, budget)]
         elif pos == 12:
             if delta < 3:
                 return [(pos + delta, budget)]
@@ -128,8 +131,9 @@ class Board:
             print("ERROR - Not possible to compute accessible squares")
 
     def apply_delta(self, positions, deltas):
-        """returns the a new position for each starting position and movement delta
-           if multiple possible positions, choose one randomly (will work with tests)
+        """
+        Returns the a new position for each starting position and movement delta
+        if multiple possible positions, choose one randomly (will work with tests)
         """
         new_positions = -np.ones(len(positions), dtype=int)
 
@@ -143,7 +147,8 @@ class Board:
 
         # at intersection and moving
         idx = np.logical_and(positions == 2, deltas != 0)
-        new_positions[idx] = np.choose(np.random.randint(0, 2, np.sum(idx)), np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
+        new_positions[idx] = np.choose(np.random.randint(0, 2, np.sum(idx)),
+                                       np.array([positions[idx] + deltas[idx], positions[idx] + deltas[idx] + 7]))
 
         # --- SLOW LANE ---
         # 'jump' is the jump from 9 to 14, when slow and fast lanes meet back
@@ -159,7 +164,7 @@ class Board:
         # from 7 with jump
         idx = np.logical_and(positions == 7, deltas == 3)
         new_positions[idx] = 14
-        
+
         # from 8 with no jump
         idx = np.logical_and(positions == 8, deltas < 2)
         new_positions[idx] = positions[idx] + deltas[idx]
@@ -171,55 +176,55 @@ class Board:
         # from 8 with overshoot
         idx = np.logical_and(positions == 8, deltas > 2)
         new_positions[idx] = deltas[idx] - 3 if self.circle else 14
-        
+
         # from 9 without jump
         idx = np.logical_and(positions == 9, deltas < 1)
         new_positions[idx] = positions[idx] + deltas[idx]
-        
+
         # from 9 with jump
         idx = np.logical_and(positions == 9, deltas == 1)
         new_positions[idx] = 14
-        
+
         # from 9 with overshoot
         idx = np.logical_and(positions == 9, deltas > 1)
         new_positions[idx] = deltas[idx] - 2 if self.circle else 14
-        
+
         # --- FAST LANE ---
         # before possible overshoot
         idx = np.logical_and(positions > 9, positions < 12)
         new_positions[idx] = positions[idx] + deltas[idx]
-        
+
         # from 12 without overshoot
         idx = np.logical_and(positions == 12, deltas < 3)
         new_positions[idx] = positions[idx] + deltas[idx]
-        
+
         # from 12 with overshoot
         idx = np.logical_and(positions == 12, deltas >= 3)
         new_positions[idx] = deltas[idx] - 3 if self.circle else 14
-        
+
         # from 13 without overshoot
         idx = np.logical_and(positions == 13, deltas < 2)
         new_positions[idx] = positions[idx] + deltas[idx]
-        
+
         # from 13 with overshoot
         idx = np.logical_and(positions == 13, deltas >= 2)
         new_positions[idx] = deltas[idx] - 2 if self.circle else 14
-        
+
         # if already at the end
         idx = positions == 14
         new_positions[idx] = 14
-        
+
         return new_positions
 
     def apply_penalty(self, pos: int):
-        """returns the new position after going back 3 tiles"""
+        """Returns the new position after going back 3 tiles"""
         if 10 <= pos <= 12:
             return pos - 7 - 3
         else:
             return max(0, pos - 3)
 
     def apply_n_penalty(self, states):
-        """returns the new positions after going back 3 tiles, takes an array as input"""
+        """Returns the new positions after going back 3 tiles, takes an array as input"""
         new_states = -np.ones(len(states), dtype=int)
 
         # going back to before intersection
@@ -259,7 +264,7 @@ class Board:
                 else:
                     landing_proba[state] += budget
 
-        assert np.abs(np.sum(landing_proba)-1) < 1e-15, "Sum of probabilities must be equal to 1"
+        assert np.abs(np.sum(landing_proba) - 1) < 1e-15, "Sum of probabilities must be equal to 1"
         return landing_proba
 
     def apply_traps(self, states, does_trigger):
@@ -276,7 +281,7 @@ class Board:
         # no trap triggered
         idx = np.logical_or(square_types == ORDINARY, np.logical_not(does_trigger))
         new_states[idx] = states[idx]
-        
+
         # restart
         idx = np.logical_and(square_types == RESTART, does_trigger)
         new_states[idx] = 0
@@ -305,12 +310,12 @@ class Board:
         nb_steps = np.zeros(len(positions))
 
         security_throws = np.where(die_types == SECURITY)[0]
-        normal_throws   = np.where(die_types == NORMAL)[0]
-        risky_throws    = np.where(die_types == RISKY)[0]
+        normal_throws = np.where(die_types == NORMAL)[0]
+        risky_throws = np.where(die_types == RISKY)[0]
 
         nb_steps[security_throws] = np.random.choice(self.dice[SECURITY - 1].possible_steps, len(security_throws), True)
-        nb_steps[normal_throws]   = np.random.choice(self.dice[NORMAL   - 1].possible_steps, len(normal_throws),   True)
-        nb_steps[risky_throws]    = np.random.choice(self.dice[RISKY    - 1].possible_steps, len(risky_throws),    True)
+        nb_steps[normal_throws] = np.random.choice(self.dice[NORMAL - 1].possible_steps, len(normal_throws), True)
+        nb_steps[risky_throws] = np.random.choice(self.dice[RISKY - 1].possible_steps, len(risky_throws), True)
 
         return nb_steps
 
@@ -327,6 +332,8 @@ class Board:
 
 def markovDecision(layout: np.ndarray, circle: bool):
     """
+    Determines the optimal strategy regarding the choice of the dice.
+    Coform to project statement.
     :param layout: vector representing the layout of the game,
                    containing 15 values representing the 15 squares, values in [0, 4]
     :param circle: indicates if the player must land exactly on the final square to win or still wins by overstepping
@@ -385,7 +392,7 @@ def test_markovDecision(layout, circle, name="", verbose=False):
         f"Output dice is not a ndarray or is not of length 14\n\nDICE       : {dice}"
 
     _format = "{:<7}" * 14
-    if verbose :
+    if verbose:
         print(f"\nSuccess {name} - Circle: {circle}"
               f"\n              {_format.format(*list(range(1, 15)))}"
               f"\nEXPECTATION : {_format.format(*np.around(expectation, 2))}"
@@ -426,7 +433,8 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         nb_rolls_left = nb_rolls[not_done]
 
         # choose dice
-        dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left), dtype=np.int8)
+        dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY + 1, len(states_left),
+                                                                                dtype=np.int8)
 
         # compute if traps are triggered
         trap_trigger = board.does_trigger_trap(dice)
@@ -441,7 +449,9 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
         # add the number of turns for each iteration
-        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int16) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
+        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int16) + np.repeat(extra_costs,
+                                                                                               np.sum(marked_left,
+                                                                                                      axis=1))
 
         marked_left[np.arange(len(marked_left)), new_states] = True
 
@@ -455,14 +465,14 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
             return -np.ones(len(policy)), policy
 
     nb_rolls = nb_rolls[:, :-1]
-    empiric_result = np.sum(nb_rolls, axis=0)/np.count_nonzero(nb_rolls, axis=0)
+    empiric_result = np.sum(nb_rolls, axis=0) / np.count_nonzero(nb_rolls, axis=0)
 
     if verbose:
-        print( f"Expectation results : " +
+        print(f"Expectation results : " +
               (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
-               f"\n   - Empiric       : {empiric_result:>7.4f} "
-               f"| σ = {np.std(nb_rolls[:, 0]):>7.4f} "
-               f"| [{np.min(nb_rolls[:, 0])}, {np.max(nb_rolls[:, 0])}]"
-               f"\n")
-        
+              f"\n   - Empiric       : {empiric_result:>7.4f} "
+              f"| σ = {np.std(nb_rolls[:, 0]):>7.4f} "
+              f"| [{np.min(nb_rolls[:, 0])}, {np.max(nb_rolls[:, 0])}]"
+              f"\n")
+
     return empiric_result, policy

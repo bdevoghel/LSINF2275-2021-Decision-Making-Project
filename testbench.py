@@ -13,24 +13,25 @@ from layouts import *
 # print information to standard output 
 #   0 for no verbose,
 #   2 for max verbose
-verbose = 1
+verbose = 2
 # number of iterations for empirical tests
 nb_iterations = 1e6
 # filename to write results
-filename = "results_val_layout_1.txt"
+filename = "results_testbench.txt"
 # open file in write mode
 f = open(filename, 'w')
+
 
 # -----------------------------------------------------------------------------
 # Functions
 # -----------------------------------------------------------------------------
 
-def test_markov(layout, circle=False, name="markov", write_file=True) :
-    """runs the markov decision tests, prints in the output file and returns 
+def test_markov(layout, circle=False, name="markov", write_file=True):
+    """runs the markov decision tests, prints in the output file and returns
        the optimal dice to use"""
     markov_exp, dice = SaL.test_markovDecision(layout, circle, verbose == 2)
     # write
-    if write_file :
+    if write_file:
         print("new markov", file=f)
         print(f"    name        : {name}", file=f)
         print(f"    layout      : {' '.join(map(str, layout))}", file=f)
@@ -41,11 +42,12 @@ def test_markov(layout, circle=False, name="markov", write_file=True) :
 
     return markov_exp, dice
 
-def test_empirical(layout, circle=False, expectation=None, policy=None, name="empiric", write_file=True) :
+
+def test_empirical(layout, circle=False, expectation=None, policy=None, name="empiric", write_file=True):
     """runs the empirical tests and prints in the output file"""
     empiric_exp, dice = SaL.test_empirically(layout, circle, expectation, policy, nb_iterations, verbose == 2)
     # write
-    if write_file :
+    if write_file:
         print("new empiric", file=f)
         print(f"    name        : {name}", file=f)
         print(f"    layout      : {' '.join(map(str, layout))}", file=f)
@@ -63,26 +65,29 @@ def test_empirical(layout, circle=False, expectation=None, policy=None, name="em
     return empiric_exp, dice
 
 
-def compare_models(layout, circle=False) :
+def compare_models(layout, circle=False):
     markov_exp, markov_dice = test_markov(layout, circle)
     _, _ = test_empirical(layout, circle, markov_exp, markov_dice)
 
 
-def compare_policies(policies, layout, circle=False, add_optimal = True, add_pure_random=False) :
+def compare_policies(policies, layout, circle=False, add_optimal=True, add_pure_random=False):
     """compare different policies with one another and with the optimal policy"""
     _, optimal_policy = test_markov(layout, circle, write_file=add_optimal)
-    if add_optimal : policies.append(("optimal", optimal_policy))
-    if add_pure_random : policies.append(("pure random", None))
+    if add_optimal: policies.append(("optimal", optimal_policy))
+    if add_pure_random: policies.append(("pure random", None))
 
     threads = []
 
     # test for each policy
-    for policy in policies :
+    for policy in policies:
         # if a policy is a tuple of name, dice
-        if len(policy) == 2 : name, dice = policy
+        if len(policy) == 2:
+            name, dice = policy
         # if a policy is only a list of dice
-        elif len(policy) == 15 : name, dice = None, policy
-        threads.append(threading.Thread(target=test_empirical, args=(layout, circle), kwargs={'policy': dice, 'name':name}))
+        elif len(policy) == 15:
+            name, dice = None, policy
+        threads.append(
+            threading.Thread(target=test_empirical, args=(layout, circle), kwargs={'policy': dice, 'name': name}))
 
     for thread in threads:
         thread.start()
@@ -96,10 +101,12 @@ def compare_policies(policies, layout, circle=False, add_optimal = True, add_pur
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # for layout in test_layouts[:2] :
-    layout = test_layouts[1]
-    for circle in [True, False] :
-        policies = strategies.get_policies(layout, circle)
-        compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=True)
+    # compare_models(layout_custom2, False)
+    # compare_models(layout_custom2, True)
+
+    for layout in test_layouts:
+        for circle in [True, False]:
+            policies = strategies.get_policies(layout, circle)
+            compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=False)
 
     f.close()

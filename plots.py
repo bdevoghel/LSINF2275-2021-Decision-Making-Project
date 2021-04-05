@@ -21,8 +21,8 @@ sort_idx_without_random = np.argsort(order[:-1])
 
 # class to store the result
 class Result:
-    def __init__(self, type):
-        self.type = type
+    def __init__(self, r_type):
+        self.type = r_type
         self.policy_name = None
         self.policy_dice = None
         self.layout = None
@@ -90,18 +90,18 @@ def graph_theoretical_vs_empirical():
         plt.figure(figsize=(7, 5))
 
         for r in group:
-            X_axis = np.arange(1, len(r.layout))
+            x_axis = np.arange(1, len(r.layout))
             # if only plot the theory vs empiric
             if r.circle:
                 if r.policy_name == 'markov':
-                    plt.bar(X_axis - 0.3, r.expectation, 0.2, label='MDP with circle', color="#4E79A7")
+                    plt.bar(x_axis - 0.3, r.expectation, 0.2, label='MDP with circle', color="#4E79A7")
                 elif r.policy_name == 'optimal':
-                    plt.bar(X_axis - 0.1, r.expectation, 0.2, label='Empirical with circle', color="#A0CBE8")
+                    plt.bar(x_axis - 0.1, r.expectation, 0.2, label='Empirical with circle', color="#A0CBE8")
             else:
                 if r.policy_name == 'markov':
-                    plt.bar(X_axis + 0.1, r.expectation, 0.2, label='MDP without circle', color="#F28E2B")
+                    plt.bar(x_axis + 0.1, r.expectation, 0.2, label='MDP without circle', color="#F28E2B")
                 elif r.policy_name == 'optimal':
-                    plt.bar(X_axis + 0.3, r.expectation, 0.2, label='Empirical without circle', color="#FFBE7D")
+                    plt.bar(x_axis + 0.3, r.expectation, 0.2, label='Empirical without circle', color="#FFBE7D")
 
         # labels and titles
         title = f"{title} - Empirical vs MDP"
@@ -131,7 +131,8 @@ def graph_different_policies():
         expec_no_circle = []
 
         for r in group:
-            if r.policy_name == "markov": continue
+            if r.policy_name == "markov":
+                continue
             if r.circle:
                 names_circle.append(r.policy_name)
                 expec_circle.append(r.expectation[0])
@@ -144,19 +145,19 @@ def graph_different_policies():
         names_no_circle = np.array(names_no_circle)
         expec_no_circle = np.array(expec_no_circle)
 
-        idx_circle = np.argsort(names_circle)  #, key=lambda val: sort_order[val[1]])
+        idx_circle = np.argsort(names_circle)
         names_circle = names_circle[idx_circle]
         expec_circle = expec_circle[idx_circle]
 
-        idx_no_circle = np.argsort(names_no_circle)  #, key=lambda val: sort_order[val[1]])
+        idx_no_circle = np.argsort(names_no_circle)
         names_no_circle = names_no_circle[idx_no_circle]
         expec_no_circle = expec_no_circle[idx_no_circle]
 
         # create bars
-        X_axis = np.arange(len(names_circle))
-        plt.xticks(X_axis, names_circle)
-        plt.bar(X_axis - 0.2, expec_circle, 0.4, label='with circle', color="#4E79A7")
-        plt.bar(X_axis + 0.2, expec_no_circle, 0.4, label='without circle', color="#F28E2B")
+        x_axis = np.arange(len(names_circle))
+        plt.xticks(x_axis, names_circle)
+        plt.bar(x_axis - 0.2, expec_circle, 0.4, label='with circle', color="#4E79A7")
+        plt.bar(x_axis + 0.2, expec_no_circle, 0.4, label='without circle', color="#F28E2B")
 
         # labels and titles
         plt.title(f"{title}")
