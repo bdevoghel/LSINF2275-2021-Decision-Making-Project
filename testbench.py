@@ -15,9 +15,9 @@ from layouts import *
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e7
+nb_iterations = 1e6
 # filename to write results
-filename = "results_gus_layout2.txt"
+filename = "results_val_layout_5.txt"
 # open file in write mode
 f = open(filename, 'w')
 
@@ -97,7 +97,7 @@ def compare_policies(policies, layout, circle=False, add_optimal = True, add_pur
 
 if __name__ == '__main__':
     # for layout in test_layouts[:2] :
-    layout = test_layouts[1]
+    layout = test_layouts[5]
     for circle in [True, False] :
         policies = strategies.get_policies(layout, circle)
         compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=True)

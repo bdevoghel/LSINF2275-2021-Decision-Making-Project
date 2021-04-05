@@ -61,7 +61,7 @@ def suboptimal(layout, circle):
         min_die = min(state_expectation, key=state_expectation.get)
         policy[state] = min_die.type
 
-    return "suboptimal", policy
+    return "greedy", policy
 
 # -----------------------------------------------------------------------------
 # Other functions
