@@ -39,4 +39,3 @@ layout_custom2 = np.array(
             PRISON,     PENALTY,    RESTART,    GAMBLE,     ORDINARY])
 
 test_layouts = [layout_ordinary, layout_penalty, layout_prison, layout_gamble, layout_restart, layout_custom1, layout_custom2]
-layouts_gus = test_layouts[2:3]

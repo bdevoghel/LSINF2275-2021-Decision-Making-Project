@@ -17,7 +17,7 @@ verbose = 1
 # number of iterations for empirical tests
 nb_iterations = 1e7
 # filename to write results
-filename = "results_gus.txt"
+filename = "results_val.txt"
 # open file in write mode
 f = open(filename, 'w')
 
@@ -99,7 +99,7 @@ if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     # compare_models(layout_custom2, True)
 
-    for layout in layouts_gus :
+    for layout in test_layouts[:2] :
         for circle in [True, False] :
             policies = strategies.get_policies(layout, circle)
             compare_policies(policies[:2], layout, circle, add_optimal=True, add_pure_random=False)
