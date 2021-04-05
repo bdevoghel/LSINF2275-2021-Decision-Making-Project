@@ -1,15 +1,18 @@
+from os import getpgid
 import snakes_and_ladders as SaL
 from snakes_and_ladders import SECURITY, NORMAL, RISKY
 from snakes_and_ladders import ORDINARY, RESTART, PENALTY, PRISON, GAMBLE
-from suboptimal import get_strategy
+import strategies
 import numpy as np
 
 # -----------------------------------------------------------------------------
 # Testing constants
 # -----------------------------------------------------------------------------
 
-# print information to standard output
-verbose = True
+# print information to standard output 
+#   0 for no verbose,
+#   2 for max verbose
+verbose = 1
 # number of iterations for empirical tests
 nb_iterations = 1e5
 # filename to write results
@@ -54,31 +57,33 @@ layout_custom2 = np.array(
 # Functions
 # -----------------------------------------------------------------------------
 
-def test_markov(layout, circle=False, write_file=True) :
+def test_markov(layout, circle=False, name="markov", write_file=True) :
     """runs the markov decision tests, prints in the output file and returns 
        the optimal dice to use"""
-    markov_exp, dice = SaL.test_markovDecision(layout, circle, verbose)
+    markov_exp, dice = SaL.test_markovDecision(layout, circle, verbose == 2)
     # write
     if write_file :
         print("markov", file=f)
-        print(f"    layout : {layout}", file=f)
-        print(f"    circle : {circle}", file=f)
-        print(f"    dice : {dice}", file=f)
+        print(f"    name        : {name}", file=f)
+        print(f"    layout      : {layout}", file=f)
+        print(f"    circle      : {circle}", file=f)
+        print(f"    dice        : {dice}", file=f)
         print(f"    expectation : {markov_exp[0]:>7.4f}", file=f)
         print("", file=f)
 
     return markov_exp, dice
 
-def test_empirical(layout, circle=False, expectation=None, policy=None, write_file=True) :
+def test_empirical(layout, circle=False, expectation=None, policy=None, name="empiric", write_file=True) :
     """runs the empirical tests and prints in the output file"""
-    empiric_exp, dice = SaL.test_empirically(layout, circle, expectation, policy, nb_iterations, verbose)
+    empiric_exp, dice = SaL.test_empirically(layout, circle, expectation, policy, nb_iterations, verbose == 2)
     # write
     if write_file :
         print("empiric", file=f)
-        print(f"    layout : {layout}", file=f)
-        print(f"    circle : {circle}", file=f)
-        print(f"    iterations : {int(nb_iterations)}", file=f)
-        print(f"    dice : {dice}", file=f)
+        print(f"    name        : {name}", file=f)
+        print(f"    layout      : {layout}", file=f)
+        print(f"    circle      : {circle}", file=f)
+        print(f"    iterations  : {int(nb_iterations)}", file=f)
+        print(f"    dice        : {dice}", file=f)
         print(f"    expectation : {empiric_exp:>7.4f}", file=f)
         print("", file=f)
 
@@ -93,12 +98,22 @@ def compare_models(layout, circle=False) :
 def compare_policies(policies, layout, circle=False) :
     """compare different policies with one another and with the optimal policy"""
     _, optimal_policy = test_markov(layout, circle, write_file=False)
-    policies.append(optimal_policy)
+    policies.append(("optimal", optimal_policy))
 
     # test for each policy
     for policy in policies:
-        empiric_exp, _ = test_empirical(layout, circle, policy=policy)
-        if verbose : print(f"expectation of {empiric_exp:>7.4f} with policy {policy}")
+        # if a policy is a tuple of name, dice
+        if len(policy) == 2 :
+            name, dice = policy
+        # if a policy is only a list of dice
+        elif len(policy) == 15 :
+            name, dice = None, policy
+        
+        empiric_exp, _ = test_empirical(layout, circle, policy=dice, name=name)
+        if verbose >= 1 : 
+            print(f"\nName : {name}")
+            print(f"    expectation : {empiric_exp:>7.4f}")
+            print(f"    policy : {list(dice)}")
 
 # -----------------------------------------------------------------------------
 # Main
@@ -107,8 +122,8 @@ def compare_policies(policies, layout, circle=False) :
 if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     #compare_models(layout_custom2, True)
-    suboptimal = get_strategy(layout_custom2, True)
-    compare_policies([suboptimal], layout_custom2, True)
+    policies = strategies.get_policies(layout_custom2, True)
+    compare_policies(policies, layout_custom2, True)
 
     f.close()
 
