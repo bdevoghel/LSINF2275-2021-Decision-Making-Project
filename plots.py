@@ -147,21 +147,24 @@ def graph_different_policies() :
         
         # sort arrays
         idx_circle = np.argsort(names_circle)
-        names_circle = names_circle[idx_circle]
-        expec_circle = expec_circle[idx_circle]
+        names_circle = np.array(names_circle)[idx_circle]
+        expec_circle = np.array(expec_circle)[idx_circle]
 
         idx_no_circle = np.argsort(names_no_circle)
-        names_no_circle = names_no_circle[idx_no_circle]
-        expec_no_circle = expec_no_circle[idx_no_circle]
+        names_no_circle = np.array(names_no_circle)[idx_no_circle]
+        expec_no_circle = np.array(expec_no_circle)[idx_no_circle]
 
         # create bars
         X_axis = np.arange(len(names_circle))
-        plt.xticks(names_circle)
-        plt.bar(X_axis - 0.2, expec_no_circle, 0.4)
+        plt.xticks(X_axis, names_circle)
+        plt.bar(X_axis - 0.2, expec_no_circle, 0.4, label='without circle')
+        plt.bar(X_axis + 0.2, expec_circle, 0.4, label='with circle')
+        
         # labels and titles
         plt.title(f"{title}")
         plt.xlabel("policy")
         plt.ylabel("expectation")
+        plt.legend()
         # save figure
         plt.savefig(f"plots/{title.replace(' ','')}", bbox_inches='tight')
 
