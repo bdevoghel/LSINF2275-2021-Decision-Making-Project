@@ -80,8 +80,6 @@ results = grouped
 def graph_theoretical_vs_empirical():
     # for each layout
     for group in grouped:
-        # create one plot
-        plt.figure(figsize=(5, 5))
         # get layout name
         title = "No name found for this layout"
         for layout_name, layout_tiles in layout_match:
@@ -89,29 +87,10 @@ def graph_theoretical_vs_empirical():
                 title = layout_name
                 break
         # get names and expectation
-        names = []
-        expec = []
-        for r in group:
-            names.append(r.policy_name)
-            expec.append(r.expectation[0])
-        # create bars
-        plt.bar(names, expec)
-        # labels and titles
-        plt.title(f"{title}")
-        plt.xlabel("Policy")
-        plt.ylabel("Expectation")
-        # save figure
-        plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')
-
-        # plotting empiric/theoric graph
-        # get names and expectation
         plt.figure(figsize=(7, 5))
-        names = []
-        expec = []
-
-        X_axis = np.arange(1, len(r.layout))
 
         for r in group:
+            X_axis = np.arange(1, len(r.layout))
             # if only plot the theory vs empiric
             if r.circle:
                 if r.policy_name == 'markov':
