@@ -17,7 +17,7 @@ verbose = 1
 # number of iterations for empirical tests
 nb_iterations = 1e7
 # filename to write results
-filename = "results_val.txt"
+filename = "results_gus.txt"
 # open file in write mode
 f = open(filename, 'w')
 
@@ -70,7 +70,7 @@ def compare_models(layout, circle=False) :
 
 def compare_policies(policies, layout, circle=False, add_optimal = True, add_pure_random=False) :
     """compare different policies with one another and with the optimal policy"""
-    _, optimal_policy = test_markov(layout, circle, write_file=True)
+    _, optimal_policy = test_markov(layout, circle, write_file=add_optimal)
     if add_optimal : policies.append(("optimal", optimal_policy))
     if add_pure_random : policies.append(("pure random", None))
 
@@ -96,7 +96,7 @@ def compare_policies(policies, layout, circle=False, add_optimal = True, add_pur
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    #compare_models(layout_custom2, False)
+    # compare_models(layout_custom2, False)
     # compare_models(layout_custom2, True)
 
     for layout in test_layouts[:2] :
