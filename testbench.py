@@ -14,7 +14,7 @@ from layouts import *
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e3
+nb_iterations = 1e5
 # filename to write results
 filename = "results.txt"
 # open file in write mode
@@ -35,7 +35,7 @@ def test_markov(layout, circle=False, name="markov", write_file=True) :
         print(f"    layout      : {' '.join(map(str, layout))}", file=f)
         print(f"    circle      : {circle}", file=f)
         print(f"    dice        : {' '.join(map(str, dice))}", file=f)
-        print(f"    expectation : {markov_exp[0]:>7.4f}", file=f)
+        print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), markov_exp))}", file=f)
         print("", file=f)
 
     return markov_exp, dice
@@ -50,8 +50,8 @@ def test_empirical(layout, circle=False, expectation=None, policy=None, name="em
         print(f"    layout      : {' '.join(map(str, layout))}", file=f)
         print(f"    circle      : {circle}", file=f)
         print(f"    iterations  : {int(nb_iterations)}", file=f)
-        print(f"    dice        : {' '.join(map(str, dice))}", file=f)
-        print(f"    expectation : {empiric_exp:>7.4f}", file=f)
+        print(f"    dice        : {' '.join(map(str, dice))}" if dice is not None else "", file=f)
+        print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), empiric_exp))}", file=f)
         print("", file=f)
 
     return empiric_exp, dice
@@ -62,10 +62,11 @@ def compare_models(layout, circle=False) :
     _, _ = test_empirical(layout, circle, markov_exp, markov_dice)
 
 
-def compare_policies(policies, layout, circle=False) :
+def compare_policies(policies, layout, circle=False, add_pure_random=False) :
     """compare different policies with one another and with the optimal policy"""
-    _, optimal_policy = test_markov(layout, circle, write_file=False)
+    _, optimal_policy = test_markov(layout, circle, write_file=True)
     policies.append(("optimal", optimal_policy))
+    if add_pure_random: policies.append(("pure random", None))
 
     # test for each policy
     for policy in policies:
@@ -79,8 +80,8 @@ def compare_policies(policies, layout, circle=False) :
         empiric_exp, _ = test_empirical(layout, circle, policy=dice, name=name)
         if verbose >= 1 : 
             print(f"\nName : {name}")
-            print(f"    expectation : {empiric_exp:>7.4f}")
-            print(f"    policy : {list(dice)}")
+            print(f"    expectation : {' '.join(map(lambda x: format(x, '>7.4f'), empiric_exp))}")
+            print(f"    policy : {list(dice)}" if dice is not None else f"    policy : pure random")
 
 # -----------------------------------------------------------------------------
 # Main
@@ -89,11 +90,12 @@ def compare_policies(policies, layout, circle=False) :
 if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     #compare_models(layout_custom2, True)
+
     policies = strategies.get_policies(layout_custom1, True)
-    compare_policies(policies, layout_custom1, True)
+    compare_policies(policies, layout_custom1, True, add_pure_random=True)
     
     policies = strategies.get_policies(layout_custom2, True)
-    compare_policies(policies, layout_custom2, True)
+    compare_policies(policies, layout_custom2, True, add_pure_random=True)
 
     f.close()
 

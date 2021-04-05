@@ -366,9 +366,12 @@ def test_markovDecision(layout, circle, name="", verbose=False):
 
 def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7, verbose=False):
     board = Board(layout, circle)
-    nb_rolls = np.zeros(int(nb_iter))
+    nb_rolls = np.zeros((int(nb_iter), len(board.layout)), dtype=float)
+    marked = np.zeros((int(nb_iter), len(board.layout)), dtype=bool)
     states = np.zeros(int(nb_iter), dtype=int)
     not_done = np.ones(int(nb_iter), dtype=bool)
+
+    marked[:, 0] = True
 
     if verbose:
         print(f"Simulating {int(nb_iter)} games with following"
@@ -377,6 +380,8 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
 
     while np.sum(not_done) != 0:
         states_left = states[not_done]
+        marked_left = marked[not_done]
+        nb_rolls_left = nb_rolls[not_done]
 
         dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left))
 
@@ -386,19 +391,24 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         new_states = board.apply_delta(states_left, nb_steps)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
-        nb_rolls[not_done] += 1. + extra_costs
+        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left)) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
+
+        marked_left[np.arange(len(marked_left)), new_states] = True
 
         states[not_done] = new_states
+        nb_rolls[not_done] = nb_rolls_left
+        marked[not_done] = marked_left
         not_done[states == len(board.layout) - 1] = False
-    
-    empiric_result = np.mean(nb_rolls)
+
+    nb_rolls = nb_rolls[:, :-1]
+    empiric_result = np.sum(nb_rolls, axis=0)/np.count_nonzero(nb_rolls, axis=0)
 
     if verbose:
         print( f"Expectation results : " +
               (f"\n   - Optimal (MDP) : {expectation[0]:>7.4f}" if expectation is not None else "") +
                f"\n   - Empiric       : {empiric_result:>7.4f} "
-               f"| σ = {np.std(nb_rolls):>7.4f} "
-               f"| [{np.min(nb_rolls)}, {np.max(nb_rolls)}]"
+               f"| σ = {np.std(nb_rolls[:, 0]):>7.4f} "
+               f"| [{np.min(nb_rolls[:, 0])}, {np.max(nb_rolls[:, 0])}]"
                f"\n")
         
     return empiric_result, policy

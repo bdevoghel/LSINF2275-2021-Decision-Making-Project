@@ -49,7 +49,7 @@ with open(filename, 'r') as f :
             results[-1].policy_dice = list(map(int, map(float, line[2:])))
 
         elif line[0] == "expectation" :
-            results[-1].expectation = float(line[-1])
+            results[-1].expectation = list(map(float, line[2:]))
         
 # group by layout
 grouped = []
@@ -82,7 +82,7 @@ for group in grouped :
     expec = []
     for r in group :
         names.append(r.policy_name)
-        expec.append(r.expectation)
+        expec.append(r.expectation[0])
     # create bars
     plt.bar(names, expec)
     # labels and titles
@@ -91,3 +91,26 @@ for group in grouped :
     plt.ylabel("expectation")
     # save figure
     plt.savefig(f"plots/{title.replace(' ','')}", bbox_inches='tight')
+
+    # plotting empiric/theoric graph
+    # get names and expectation
+    plt.figure(figsize=(7, 5))
+    names = []
+    expec = []
+
+    X_axis = np.arange(1, len(r.layout))
+
+    for r in group:
+        if r.policy_name == 'markov':
+            plt.bar(X_axis - 0.2, r.expectation, 0.4, label='Theoretical')
+        elif r.policy_name == 'optimal':
+            plt.bar(X_axis + 0.2, r.expectation, 0.4, label='Empirical')
+
+    # labels and titles
+    title = f"{title} Empirical versus Theoretical"
+    plt.title(f"{title}")
+    plt.xlabel("State")
+    plt.ylabel("expectation")
+    plt.legend()
+    # save figure
+    plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')

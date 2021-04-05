@@ -19,14 +19,18 @@ def strategy_template(layout : list, circle : bool) -> Tuple[str, list] :
     return "name", policy
 
 def risky(layout, circle) :
-    policy = np.ones(15, dtype=int) * RISKY
+    policy = np.ones(len(layout), dtype=int) * RISKY
 
     return "risky", policy
 
 def secure(layout, circle) :
-    policy = np.ones(15, dtype=int) * SECURITY
+    policy = np.ones(len(layout), dtype=int) * SECURITY
 
     return "secure", policy
+
+def random_policy(layout, circle) :
+    policy = np.random.randint(SECURITY, RISKY+1, len(layout), dtype=int)
+    return "random policy", policy
 
 def suboptimal(layout, circle):
     board = Board(layout, circle)
