@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from layouts import *
 
-filename = "results.txt"
+filename = "results_gus.txt"
 layout_match = [
     ('All ordinary', layout_ordinary),
     ('All penalty', layout_penalty),

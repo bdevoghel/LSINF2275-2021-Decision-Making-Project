@@ -15,9 +15,9 @@ from layouts import *
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e2
+nb_iterations = 1e7
 # filename to write results
-filename = "results.txt"
+filename = "results_gus.txt"
 # open file in write mode
 f = open(filename, 'w')
 
@@ -68,22 +68,20 @@ def compare_models(layout, circle=False) :
     _, _ = test_empirical(layout, circle, markov_exp, markov_dice)
 
 
-def compare_policies(policies, layout, circle=False, add_pure_random=False) :
+def compare_policies(policies, layout, circle=False, add_optimal = True, add_pure_random=False) :
     """compare different policies with one another and with the optimal policy"""
     _, optimal_policy = test_markov(layout, circle, write_file=True)
-    policies.append(("optimal", optimal_policy))
-    if add_pure_random: policies.append(("pure random", None))
+    if add_optimal : policies.append(("optimal", optimal_policy))
+    if add_pure_random : policies.append(("pure random", None))
 
     threads = []
 
     # test for each policy
-    for policy in policies:
+    for policy in policies :
         # if a policy is a tuple of name, dice
-        if len(policy) == 2 :
-            name, dice = policy
+        if len(policy) == 2 : name, dice = policy
         # if a policy is only a list of dice
-        elif len(policy) == 15 :
-            name, dice = None, policy
+        elif len(policy) == 15 : name, dice = None, policy
         threads.append(threading.Thread(target=test_empirical, args=(layout, circle), kwargs={'policy': dice, 'name':name}))
 
     for thread in threads:
@@ -99,20 +97,13 @@ def compare_policies(policies, layout, circle=False, add_pure_random=False) :
 
 if __name__ == '__main__':
     #compare_models(layout_custom2, False)
-    #compare_models(layout_custom2, True)
+    # compare_models(layout_custom2, True)
 
-    threads = []
-
-    for layout in test_layouts:
-        for circle in [True, False]:
+    for layout in layouts_gus :
+        for circle in [True, False] :
             policies = strategies.get_policies(layout, circle)
-            threads.append(threading.Thread(target=compare_policies, args=(policies, layout, circle), kwargs={'add_pure_random':True}))
-
-    for thread in threads:
-        thread.start()
-
-    for thread in threads:
-        thread.join()
+            compare_policies(policies[:2], layout, circle, add_optimal=True, add_pure_random=False)
+            compare_policies(policies[2:], layout, circle, add_optimal=False, add_pure_random=True)
 
     f.close()
 

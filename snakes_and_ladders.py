@@ -370,7 +370,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
     board = Board(layout, circle)
     nb_rolls = np.zeros((int(nb_iter), len(board.layout)), dtype=float)
     marked = np.zeros((int(nb_iter), len(board.layout)), dtype=bool)
-    states = np.zeros(int(nb_iter), dtype=int)
+    states = np.zeros(int(nb_iter), dtype=np.int8)
     not_done = np.ones(int(nb_iter), dtype=bool)
 
     marked[:, 0] = True
@@ -385,7 +385,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         marked_left = marked[not_done]
         nb_rolls_left = nb_rolls[not_done]
 
-        dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left))
+        dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left), dtype=np.int8)
 
         trap_trigger = board.does_trigger_trap(dice)
 
@@ -393,7 +393,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         new_states = board.apply_delta(states_left, nb_steps)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
-        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left)) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
+        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int8) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
 
         marked_left[np.arange(len(marked_left)), new_states] = True
 
