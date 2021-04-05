@@ -17,7 +17,7 @@ verbose = 1
 # number of iterations for empirical tests
 nb_iterations = 1e7
 # filename to write results
-filename = "results_gus.txt"
+filename = "results_gus_layout2.txt"
 # open file in write mode
 f = open(filename, 'w')
 
@@ -96,36 +96,10 @@ def compare_policies(policies, layout, circle=False, add_optimal = True, add_pur
 # -----------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    # compare_models(layout_custom2, False)
-    # compare_models(layout_custom2, True)
-
     # for layout in test_layouts[:2] :
-    layout = test_layouts[0]
+    layout = test_layouts[1]
     for circle in [True, False] :
         policies = strategies.get_policies(layout, circle)
-        compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=False)
+        compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=True)
 
     f.close()
-
-
-# -----------------------------------------------------------------------------
-# OLD STUFF
-# -----------------------------------------------------------------------------
-# # SaL.test_markovDecision(layout_ordinary, False, "ORDINARY")
-# # result = SaL.test_markovDecision(layout_prison, False, "PRISON")
-# # SaL.test_empirically(layout_prison, False, *result)
-# # SaL.test_markovDecision(layout_penalty, False, "PENALTY")
-# # SaL.test_markovDecision(layout_random, False, "RANDOM")
-# # SaL.test_markovDecision(layout_custom1, False, "CUSTOM1")
-
-# result = SaL.test_markovDecision(layout_custom2, False, "CUSTOM2", verbose=True)
-# SaL.test_empirically(layout_custom2, False, *result, nb_iter=1e5, verbose=True)
-
-# result = SaL.test_markovDecision(layout_custom2, True, "CUSTOM2", verbose=True)
-# SaL.test_empirically(layout_custom2, True, *result, nb_iter=1e5, verbose=True)
-
-# # SaL.test_empirically(layout_custom2, True, policy=np.array([SECURITY for _ in range(15)]))
-# # SaL.test_empirically(layout_custom2, True, policy=np.array([NORMAL for _ in range(15)]))
-# # SaL.test_empirically(layout_custom2, True, policy=np.array([RISKY for _ in range(15)]))
-# # SaL.test_empirically(layout_custom2, True, policy=np.array([np.random.randint(RISKY) + 1 for _ in range(15)]))
-# # SaL.test_empirically(layout_custom2, True, policy=None)

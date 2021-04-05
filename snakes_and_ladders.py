@@ -20,6 +20,7 @@ ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
 inf = -1
 
 class Die:
+    """Structure for dice"""
     def __init__(self, die_type):
         """Die type must be SECURITY or NORMAL or RISKY"""
         self.type = die_type
@@ -42,7 +43,8 @@ class Die:
 
 
 class Board:
-    def __init__(self, layout, circle):
+    def __init__(self, layout: list, circle: bool):
+        """Initializes a board based on the layout"""
         self.dice = [Die(die_type=dt) for dt in [SECURITY, NORMAL, RISKY]]
         self.layout = layout
         self.circle = circle
@@ -126,6 +128,9 @@ class Board:
             print("ERROR - Not possible to compute accessible squares")
 
     def apply_delta(self, positions, deltas):
+        """returns the a new position for each starting position and movement delta
+           if multiple possible positions, choose one randomly (will work with tests)
+        """
         new_positions = -np.ones(len(positions), dtype=int)
 
         # before intersection
@@ -206,13 +211,15 @@ class Board:
         
         return new_positions
 
-    def apply_penalty(self, pos):
+    def apply_penalty(self, pos: int):
+        """returns the new position after going back 3 tiles"""
         if 10 <= pos <= 12:
             return pos - 7 - 3
         else:
             return max(0, pos - 3)
 
     def apply_n_penalty(self, states):
+        """returns the new positions after going back 3 tiles, takes an array as input"""
         new_states = -np.ones(len(states), dtype=int)
 
         # going back to before intersection
@@ -225,7 +232,7 @@ class Board:
 
         return new_states
 
-    def compute_landing_proba(self, start_position, die: Die, traps=True):
+    def compute_landing_proba(self, start_position: int, die: Die, traps=True):
         """
         Returns vector with landing probabilities on each square
         :param start_position: must be in [0, 14]
@@ -256,30 +263,45 @@ class Board:
         return landing_proba
 
     def apply_traps(self, states, does_trigger):
+        """
+        Apply traps to all the states
+        :param states: list of int, current positions
+        :param does_trigger: list of bool, whether a trap is triggered or not
+        """
         new_states = -np.ones(len(states), dtype=np.int8)
         extra_costs = np.zeros(len(states), dtype=np.int16)
 
         square_types = self.layout[states]
 
+        # no trap triggered
         idx = np.logical_or(square_types == ORDINARY, np.logical_not(does_trigger))
         new_states[idx] = states[idx]
         
+        # restart
         idx = np.logical_and(square_types == RESTART, does_trigger)
         new_states[idx] = 0
 
+        # penalty
         idx = np.logical_and(square_types == PENALTY, does_trigger)
         new_states[idx] = self.apply_n_penalty(states[idx])
 
+        # prison
         idx = np.logical_and(square_types == PRISON, does_trigger)
         new_states[idx] = states[idx]
         extra_costs[idx] = 1
 
+        # gamble
         idx = np.logical_and(square_types == GAMBLE, does_trigger)
         new_states[idx] = np.random.choice(range(len(self.layout)), len(states[idx]))
 
         return new_states, extra_costs
 
     def roll_n_dice(self, positions, die_types):
+        """
+        Choses a random die for each position
+        :param positions: list of int representing the current positions
+        :param die_types: list of int representing the die to be rolled
+        """
         nb_steps = np.zeros(len(positions))
 
         security_throws = np.where(die_types == SECURITY)[0]
@@ -293,6 +315,10 @@ class Board:
         return nb_steps
 
     def does_trigger_trap(self, die_types):
+        """
+        Returns a list of bool indicating whether a trap is triggered or not
+        :param die_types: list of int, indicating which dice are used
+        """
         does_trigger = np.zeros(len(die_types), dtype=bool)
         does_trigger[die_types == RISKY] = True
         does_trigger[die_types == NORMAL] = np.random.choice([True, False], sum(die_types == NORMAL), True)

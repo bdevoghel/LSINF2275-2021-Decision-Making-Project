@@ -1,7 +1,7 @@
 from matplotlib import pyplot as plt
 from layouts import *
 
-filename = "results_gus.txt"
+filename = "final_results.txt"
 layout_match = [
     ('All ordinary', layout_ordinary),
     ('All penalty', layout_penalty),
@@ -28,7 +28,7 @@ results = []
 with open(filename, 'r') as f :
     for line in f.readlines() :
         line = line.split()
-        if len(line) == 0 :
+        if len(line) == 0 or line[0] == "#":
             continue
 
         elif line[0] == "new" :
