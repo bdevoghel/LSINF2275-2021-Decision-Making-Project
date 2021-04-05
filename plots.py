@@ -72,10 +72,10 @@ for group in grouped :
     # create one plot
     plt.figure(figsize=(5,5))
     # get layout name
-    layout = "No name found for this layout"
+    title = "No name found for this layout"
     for layout_name, layout_tiles in layout_match :
         if list(group[0].layout) == list(layout_tiles) :
-            layout = layout_name
+            title = layout_name
             break
     # get names and expectation
     names = []
@@ -86,8 +86,8 @@ for group in grouped :
     # create bars
     plt.bar(names, expec)
     # labels and titles
-    plt.title(f"{layout}")
+    plt.title(f"{title}")
     plt.xlabel("policy")
     plt.ylabel("expectation")
     # save figure
-    plt.savefig(f"plots/{layout.replace(' ','')}", bbox_inches='tight')
+    plt.savefig(f"plots/{title.replace(' ','')}", bbox_inches='tight')
