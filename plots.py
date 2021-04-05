@@ -7,6 +7,7 @@ layout_match = [
     ('All penalty', layout_penalty),
     ('All prison', layout_prison),
     ('All gamble', layout_gamble),
+    ('All restart', layout_restart),
     ('Custom 1', layout_custom1),
     ('Custom 2', layout_custom2)
 ]

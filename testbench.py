@@ -15,7 +15,7 @@ from layouts import *
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e5
+nb_iterations = 1e2
 # filename to write results
 filename = "results.txt"
 # open file in write mode
@@ -85,8 +85,6 @@ def compare_policies(policies, layout, circle=False, add_pure_random=False) :
         elif len(policy) == 15 :
             name, dice = None, policy
         threads.append(threading.Thread(target=test_empirical, args=(layout, circle), kwargs={'policy': dice, 'name':name}))
-        # empiric_exp, _ = test_empirical(layout, circle, policy=dice, name=name)
-
 
     for thread in threads:
         thread.start()
@@ -103,11 +101,18 @@ if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     #compare_models(layout_custom2, True)
 
-    policies = strategies.get_policies(layout_custom1, True)
-    compare_policies(policies, layout_custom1, True, add_pure_random=True)
-    
-    policies = strategies.get_policies(layout_custom2, True)
-    compare_policies(policies, layout_custom2, True, add_pure_random=True)
+    threads = []
+
+    for layout in test_layouts:
+        for circle in [True, False]:
+            policies = strategies.get_policies(layout, circle)
+            threads.append(threading.Thread(target=compare_policies, args=(policies, layout, circle), kwargs={'add_pure_random':True}))
+
+    for thread in threads:
+        thread.start()
+
+    for thread in threads:
+        thread.join()
 
     f.close()
 

@@ -17,6 +17,8 @@ DICE :
 SECURITY, NORMAL, RISKY = 1, 2, 3
 ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
 
+inf = float('inf')
+
 class Die:
     def __init__(self, die_type):
         """Die type must be SECURITY or NORMAL or RISKY"""
@@ -399,6 +401,9 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         nb_rolls[not_done] = nb_rolls_left
         marked[not_done] = marked_left
         not_done[states == len(board.layout) - 1] = False
+
+        if np.all(nb_rolls[:, 0] > 1e3):
+            return np.array([inf]*len(policy)), policy
 
     nb_rolls = nb_rolls[:, :-1]
     empiric_result = np.sum(nb_rolls, axis=0)/np.count_nonzero(nb_rolls, axis=0)

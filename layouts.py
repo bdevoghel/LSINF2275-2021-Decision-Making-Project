@@ -20,6 +20,10 @@ layout_prison[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
 layout_gamble = np.ones(15) * GAMBLE
 layout_gamble[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
 
+# only PRISON (return to starting square)
+layout_restart = np.ones(15) * RESTART
+layout_restart[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
+
 # random initialized traps
 layout_random = np.random.randint(low=0, high=5, size=15)
 layout_random[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
@@ -33,3 +37,5 @@ layout_custom2 = np.array(
            [ORDINARY,   GAMBLE,     RESTART,    GAMBLE,     PENALTY, 
             ORDINARY,   PRISON,     ORDINARY,   RESTART,    ORDINARY, 
             PRISON,     PENALTY,    RESTART,    GAMBLE,     ORDINARY])
+
+test_layouts = [layout_ordinary, layout_penalty, layout_prison, layout_gamble, layout_restart, layout_custom1, layout_custom2]
