@@ -13,8 +13,11 @@ layout_match = [
     ('Custom 2', layout_custom2)
 ]
 order = ['optimal', 'greedy', 'secure', 'normal', 'risky', 'random']
+sort_order = {'markov': 0, 'optimal': 1, 'suboptimal': 2, 'secure': 3, 'normal': 4, 'risky': 5, 'random': 6}
+
 sort_idx_with_random = np.argsort(order)
 sort_idx_without_random = np.argsort(order[:-1])
+
 
 # class to store the result
 class Result:
@@ -22,10 +25,11 @@ class Result:
         self.type = type
         self.policy_name = None
         self.policy_dice = None
-        self.layout      = None
-        self.circle      = None
-        self.iterations  = None
+        self.layout = None
+        self.circle = None
+        self.iterations = None
         self.expectation = None
+
 
 # read file
 results = []
@@ -37,13 +41,13 @@ with open(filename, 'r') as f:
 
         elif line[0] == "new":
             results.append(Result(line[-1]))
-        
+
         elif line[0] == "name":
             results[-1].policy_name = line[-1]
-        
+
         elif line[0] == "layout":
             results[-1].layout = list(map(int, map(float, line[2:])))
-        
+
         elif line[0] == "circle":
             results[-1].circle = line[-1] == "True"
 
@@ -55,7 +59,7 @@ with open(filename, 'r') as f:
 
         elif line[0] == "expectation":
             results[-1].expectation = list(map(float, line[2:]))
-        
+
 # group by layout
 grouped = []
 for result in results:
@@ -71,12 +75,13 @@ for result in results:
         grouped.append([result])
 results = grouped
 
+
 # plot functions
-def graph_theoretical_vs_empirical() : 
+def graph_theoretical_vs_empirical():
     # for each layout
     for group in grouped:
         # create one plot
-        plt.figure(figsize=(5,5))
+        plt.figure(figsize=(5, 5))
         # get layout name
         title = "No name found for this layout"
         for layout_name, layout_tiles in layout_match:
@@ -93,10 +98,10 @@ def graph_theoretical_vs_empirical() :
         plt.bar(names, expec)
         # labels and titles
         plt.title(f"{title}")
-        plt.xlabel("policy")
-        plt.ylabel("expectation")
+        plt.xlabel("Policy")
+        plt.ylabel("Expectation")
         # save figure
-        plt.savefig(f"plots/{title.replace(' ','')}", bbox_inches='tight')
+        plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')
 
         # plotting empiric/theoric graph
         # get names and expectation
@@ -108,27 +113,32 @@ def graph_theoretical_vs_empirical() :
 
         for r in group:
             # if only plot the theory vs empiric
-            if r.circle: 
-                if r.policy_name == 'markov': plt.bar(X_axis - 0.3, r.expectation, 0.2, label='Theoretical with circle')
-                elif r.policy_name == 'optimal': plt.bar(X_axis - 0.1, r.expectation, 0.2, label='Empirical with circle')
+            if r.circle:
+                if r.policy_name == 'markov':
+                    plt.bar(X_axis - 0.3, r.expectation, 0.2, label='MDP with circle', color="#4E79A7")
+                elif r.policy_name == 'optimal':
+                    plt.bar(X_axis - 0.1, r.expectation, 0.2, label='Empirical with circle', color="#A0CBE8")
             else:
-                if r.policy_name == 'markov': plt.bar(X_axis + 0.1, r.expectation, 0.2, label='Theoretical without circle')
-                elif r.policy_name == 'optimal': plt.bar(X_axis + 0.3, r.expectation, 0.2, label='Empirical without circle')
+                if r.policy_name == 'markov':
+                    plt.bar(X_axis + 0.1, r.expectation, 0.2, label='MDP without circle', color="#F28E2B")
+                elif r.policy_name == 'optimal':
+                    plt.bar(X_axis + 0.3, r.expectation, 0.2, label='Empirical without circle', color="#FFBE7D")
 
         # labels and titles
-        title = f"{title} Empirical versus Theoretical"
+        title = f"{title} - Empirical vs MDP"
         plt.title(f"{title}")
         plt.xlabel("State")
-        plt.ylabel("expectation")
+        plt.ylabel("Expectation")
         plt.legend()
         # save figure
         plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')
 
-def graph_different_policies() : 
+
+def graph_different_policies():
     # for each layout
-    for group in grouped :
+    for group in grouped:
         # create one plot
-        plt.figure(figsize=(7,5))
+        plt.figure(figsize=(7, 5))
         # get layout name
         title = "No name found for this layout"
         for layout_name, layout_tiles in layout_match:
@@ -140,7 +150,7 @@ def graph_different_policies() :
         expec_circle = []
         names_no_circle = []
         expec_no_circle = []
-        
+
         for r in group:
             if r.policy_name == "markov": continue
             if r.circle:
@@ -149,36 +159,36 @@ def graph_different_policies() :
             else:
                 names_no_circle.append(r.policy_name)
                 expec_no_circle.append(r.expectation[0])
-        
+
         names_circle = np.array(names_circle)
         expec_circle = np.array(expec_circle)
         names_no_circle = np.array(names_no_circle)
         expec_no_circle = np.array(expec_no_circle)
 
-        # sort arrays
-        sort_idx = sort_idx_without_random if len(names_circle) == 5 else sort_idx_with_random
-        
-        idx_circle = np.argsort(names_circle)
-        names_circle[sort_idx] = names_circle[idx_circle]
-        expec_circle[sort_idx] = expec_circle[idx_circle]
+        idx_circle = np.argsort(names_circle)  #, key=lambda val: sort_order[val[1]])
+        names_circle = names_circle[idx_circle]
+        expec_circle = expec_circle[idx_circle]
 
-        idx_no_circle = np.argsort(names_no_circle)
-        names_no_circle[sort_idx] = names_no_circle[idx_no_circle]
-        expec_no_circle[sort_idx] = expec_no_circle[idx_no_circle]
+        idx_no_circle = np.argsort(names_no_circle)  #, key=lambda val: sort_order[val[1]])
+        names_no_circle = names_no_circle[idx_no_circle]
+        expec_no_circle = expec_no_circle[idx_no_circle]
 
         # create bars
         X_axis = np.arange(len(names_circle))
         plt.xticks(X_axis, names_circle)
-        plt.bar(X_axis - 0.2, expec_no_circle, 0.4, label='without circle', color='tab:red')
-        plt.bar(X_axis + 0.2, expec_circle, 0.4, label='with circle', color='g')
-        
+        plt.bar(X_axis - 0.2, expec_circle, 0.4, label='with circle', color="#4E79A7")
+        plt.bar(X_axis + 0.2, expec_no_circle, 0.4, label='without circle', color="#F28E2B")
+
         # labels and titles
         plt.title(f"{title}")
-        plt.xlabel("policy")
-        plt.ylabel("expectation")
+        plt.xlabel("Policy")
+        plt.ylabel("Expectation")
         plt.legend()
 
         # save figure
-        plt.savefig(f"plots/{title.replace(' ','')}", bbox_inches='tight')
+        plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')
 
-graph_different_policies()
+
+if __name__ == '__main__':
+    graph_different_policies()
+    graph_theoretical_vs_empirical()
