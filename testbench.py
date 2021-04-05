@@ -1,9 +1,9 @@
-from os import getpgid
 import snakes_and_ladders as SaL
 from snakes_and_ladders import SECURITY, NORMAL, RISKY
 from snakes_and_ladders import ORDINARY, RESTART, PENALTY, PRISON, GAMBLE
 import strategies
 import numpy as np
+from layouts import *
 
 # -----------------------------------------------------------------------------
 # Testing constants
@@ -14,44 +14,11 @@ import numpy as np
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e5
+nb_iterations = 1e3
 # filename to write results
 filename = "results.txt"
-# open file in append mode
-f = open(filename, 'a')
-
-# -----------------------------------------------------------------------------
-# Layouts
-# -----------------------------------------------------------------------------
-
-# only ORDINARY squares, no traps
-layout_ordinary = np.ones(15) * ORDINARY
-
-# only PENALTY (go back 3) traps
-layout_penalty = np.ones(15) * PENALTY
-layout_penalty[[0, -1]] = ORDINARY  # start and goal squares must be ordinary
-
-# only PRISON (stay one turn) traps
-layout_prison = np.ones(15) * PRISON
-layout_prison[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
-
-# only GAMBLE (random teleportation)
-layout_gamble = np.ones(15) * GAMBLE
-layout_gamble[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
-
-# random initialized traps
-layout_random = np.random.randint(low=0, high=5, size=15)
-layout_random[[0, -1]] = ORDINARY   # start and goal squares must be ordinary
-
-# custom layout
-layout_custom1 = np.ones(15) * ORDINARY
-layout_custom1[[7, 8, 12]] = GAMBLE, RESTART, PENALTY
-
-# custom layout
-layout_custom2 = np.array(
-           [ORDINARY,   GAMBLE,     RESTART,    GAMBLE,     PENALTY, 
-            ORDINARY,   PRISON,     ORDINARY,   RESTART,    ORDINARY, 
-            PRISON,     PENALTY,    RESTART,    GAMBLE,     ORDINARY])
+# open file in write mode
+f = open(filename, 'w')
 
 # -----------------------------------------------------------------------------
 # Functions
@@ -63,11 +30,11 @@ def test_markov(layout, circle=False, name="markov", write_file=True) :
     markov_exp, dice = SaL.test_markovDecision(layout, circle, verbose == 2)
     # write
     if write_file :
-        print("markov", file=f)
+        print("new markov", file=f)
         print(f"    name        : {name}", file=f)
-        print(f"    layout      : {layout}", file=f)
+        print(f"    layout      : {' '.join(map(str, layout))}", file=f)
         print(f"    circle      : {circle}", file=f)
-        print(f"    dice        : {dice}", file=f)
+        print(f"    dice        : {' '.join(map(str, dice))}", file=f)
         print(f"    expectation : {markov_exp[0]:>7.4f}", file=f)
         print("", file=f)
 
@@ -78,12 +45,12 @@ def test_empirical(layout, circle=False, expectation=None, policy=None, name="em
     empiric_exp, dice = SaL.test_empirically(layout, circle, expectation, policy, nb_iterations, verbose == 2)
     # write
     if write_file :
-        print("empiric", file=f)
+        print("new empiric", file=f)
         print(f"    name        : {name}", file=f)
-        print(f"    layout      : {layout}", file=f)
+        print(f"    layout      : {' '.join(map(str, layout))}", file=f)
         print(f"    circle      : {circle}", file=f)
         print(f"    iterations  : {int(nb_iterations)}", file=f)
-        print(f"    dice        : {dice}", file=f)
+        print(f"    dice        : {' '.join(map(str, dice))}", file=f)
         print(f"    expectation : {empiric_exp:>7.4f}", file=f)
         print("", file=f)
 
@@ -122,6 +89,9 @@ def compare_policies(policies, layout, circle=False) :
 if __name__ == '__main__':
     #compare_models(layout_custom2, False)
     #compare_models(layout_custom2, True)
+    policies = strategies.get_policies(layout_custom1, True)
+    compare_policies(policies, layout_custom1, True)
+    
     policies = strategies.get_policies(layout_custom2, True)
     compare_policies(policies, layout_custom2, True)
 
