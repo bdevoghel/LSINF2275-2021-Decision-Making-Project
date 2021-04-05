@@ -451,8 +451,8 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         not_done[states == len(board.layout) - 1] = False
 
         # limit the number of rolls to 1000
-        if np.all(nb_rolls[:, 0] > 1e3):
-            return np.array([inf]*len(policy)), policy
+        if np.all(nb_rolls[not_done][:, 0] > 1e3):
+            return -np.ones(len(policy)), policy
 
     nb_rolls = nb_rolls[:, :-1]
     empiric_result = np.sum(nb_rolls, axis=0)/np.count_nonzero(nb_rolls, axis=0)
