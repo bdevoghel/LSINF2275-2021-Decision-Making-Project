@@ -1,4 +1,5 @@
 from matplotlib import pyplot as plt
+from numpy.core.fromnumeric import argsort
 from layouts import *
 
 filename = "results/final_results.txt"
@@ -11,6 +12,9 @@ layout_match = [
     ('Custom 1', layout_custom1),
     ('Custom 2', layout_custom2)
 ]
+order = ['optimal', 'greedy', 'secure', 'normal', 'risky', 'random']
+sort_idx_with_random = np.argsort(order)
+sort_idx_without_random = np.argsort(order[:-1])
 
 
 # class to store the result
@@ -146,35 +150,43 @@ def graph_different_policies():
         expec_no_circle = []
 
         for r in group:
+            if r.policy_name == "markov": continue
             if r.circle:
                 names_circle.append(r.policy_name)
                 expec_circle.append(r.expectation[0])
             else:
                 names_no_circle.append(r.policy_name)
                 expec_no_circle.append(r.expectation[0])
+        
+        names_circle = np.array(names_circle)
+        expec_circle = np.array(expec_circle)
+        names_no_circle = np.array(names_no_circle)
+        expec_no_circle = np.array(expec_no_circle)
 
         # sort arrays
-        names_circle = ['markov', 'optimal', 'suboptimal', 'secure', 'normal', 'risky', 'random']
+        sort_idx = sort_idx_without_random if len(names_circle) == 5 else sort_idx_with_random
+        
         idx_circle = np.argsort(names_circle)
-        names_circle = np.array(names_circle)[idx_circle]
-        expec_circle = np.array(expec_circle)[idx_circle]
+        names_circle[sort_idx] = names_circle[idx_circle]
+        expec_circle[sort_idx] = expec_circle[idx_circle]
 
         names_no_circle = ['markov', 'optimal', 'suboptimal', 'secure', 'normal', 'risky', 'random']
         idx_no_circle = np.argsort(names_no_circle)
-        names_no_circle = np.array(names_no_circle)[idx_no_circle]
-        expec_no_circle = np.array(expec_no_circle)[idx_no_circle]
+        names_no_circle[sort_idx] = names_no_circle[idx_no_circle]
+        expec_no_circle[sort_idx] = expec_no_circle[idx_no_circle]
 
         # create bars
         X_axis = np.arange(len(names_circle))
         plt.xticks(X_axis, names_circle)
-        plt.bar(X_axis - 0.2, expec_no_circle, 0.4, label='without circle')
-        plt.bar(X_axis + 0.2, expec_circle, 0.4, label='with circle')
-
+        plt.bar(X_axis - 0.2, expec_no_circle, 0.4, label='without circle', color='tab:red')
+        plt.bar(X_axis + 0.2, expec_circle, 0.4, label='with circle', color='g')
+        
         # labels and titles
         plt.title(f"{title}")
         plt.xlabel("Policy")
         plt.ylabel("Expectation")
         plt.legend()
+
         # save figure
         plt.savefig(f"plots/{title.replace(' ', '')}", bbox_inches='tight')
 
