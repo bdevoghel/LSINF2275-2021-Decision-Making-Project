@@ -1,0 +1,110 @@
+new markov
+    name        : markov
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    dice        : 3 3 2 3 3 2 3 3 1 1 3 3 2 1
+    expectation : 11.1152 10.5537  9.0776  9.7142  8.8691  8.4572  7.8163  5.8623  4.0000  2.0000  6.7012  5.0259  3.8155  2.0000
+
+new empiric
+    name        : greedy
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+    dice        : 3 3 3 3 3 2 1 1 1 1 1 1 1 1
+    expectation : 11.6203 10.9933  9.9306  9.9312  9.1125  8.6694  7.9963  5.9951  3.9973  2.0000  7.9839  5.9980  3.9983  1.9960
+
+new empiric
+    name        : secure
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+    dice        : 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+    expectation : 16.9948 14.9973 12.9955 13.9889 11.9929  9.9945  7.9938  5.9925  3.9946  1.9985  8.0005  6.0020  4.0049  2.0022
+
+new empiric
+    name        : optimal
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+    dice        : 3 3 2 3 3 2 3 3 1 1 3 3 2 1
+    expectation : 11.1221 10.5469  9.0843  9.7172  8.8684  8.4586  7.8140  5.8634  3.9855  1.9987  6.6982  5.0279  3.8414  2.0021
+
+new empiric
+    name        : normal
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+    dice        : 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+    expectation : 21.2680 20.7253 18.8031 19.6621 18.7753 17.5563 16.9658 15.3488 10.3261 12.1230 16.0244 14.7180  9.8155 12.1214
+
+new empiric
+    name        : pure random
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+
+    expectation : 22.1755 21.3041 19.3478 20.5676 19.4657 18.8101 17.2978 14.4271 12.7900 11.0979 15.8883 13.3967 12.2569 11.0771
+
+new empiric
+    name        : risky
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : True
+    iterations  : 1000000
+    dice        : 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+    expectation : 25.0155 24.4513 22.5393 24.0320 22.7942 23.3295 21.9634 16.3703 17.9108 17.7844 19.6626 14.7771 17.3982 17.7695
+
+new markov
+    name        : markov
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    dice        : 3 3 2 3 3 2 3 1 1 3 3 3 1 3
+    expectation : 10.5871 10.0221  8.5771  9.1622  8.3270  7.9123  7.2473  5.3333  3.3333  1.3333  6.1824  4.6368  3.3333  1.3333
+
+new empiric
+    name        : greedy
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+    dice        : 3 3 3 3 2 1 1 1 1 3 1 1 1 3
+    expectation : 11.8302 11.3297  9.9983 10.1587  9.8216  9.3283  7.3265  5.3297  3.3310  1.3326  7.3474  5.3397  3.3374  1.3351
+
+new empiric
+    name        : optimal
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+    dice        : 3 3 2 3 3 2 3 1 1 3 3 3 1 3
+    expectation : 10.5895 10.0188  8.5876  9.1672  8.3265  7.9211  7.2536  5.3338  3.3343  1.3340  6.1786  4.6492  3.3601  1.3337
+
+new empiric
+    name        : secure
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+    dice        : 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+    expectation : 16.9887 14.9927 12.9938 13.9980 11.9985 10.0013  7.9991  5.9976  4.0003  2.0026  8.0007  5.9995  4.0012  1.9997
+
+new empiric
+    name        : risky
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+    dice        : 3 3 3 3 3 3 3 3 3 3 3 3 3 3 3
+    expectation : 12.1520 11.5549 10.1780 10.7294  9.7393 10.3586  8.0925  6.0676  4.3717  1.3350  6.8793  5.1624  3.9302  1.3323
+
+new empiric
+    name        : normal
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+    dice        : 2 2 2 2 2 2 2 2 2 2 2 2 2 2 2
+    expectation : 13.3949 12.9413 10.8534 12.0282 11.2189  9.8557  9.5622  6.8487  4.4708  1.5009  8.1881  5.9658  3.9835  1.5023
+
+new empiric
+    name        : pure random
+    layout      : 0 0 0 0 0 0 0 4 1 0 0 0 2 0 0
+    circle      : False
+    iterations  : 1000000
+
+    expectation : 14.4342 13.5560 11.6245 12.7855 11.7257 11.0717  9.4231  6.9511  4.5820  1.5667  8.0443  6.0015  4.0999  1.5649
+
