@@ -99,11 +99,11 @@ if __name__ == '__main__':
     # compare_models(layout_custom2, False)
     # compare_models(layout_custom2, True)
 
-    for layout in test_layouts[:2] :
-        for circle in [True, False] :
-            policies = strategies.get_policies(layout, circle)
-            compare_policies(policies[:2], layout, circle, add_optimal=True, add_pure_random=False)
-            compare_policies(policies[2:], layout, circle, add_optimal=False, add_pure_random=True)
+    # for layout in test_layouts[:2] :
+    layout = test_layouts[0]
+    for circle in [True, False] :
+        policies = strategies.get_policies(layout, circle)
+        compare_policies(policies, layout, circle, add_optimal=True, add_pure_random=False)
 
     f.close()
 

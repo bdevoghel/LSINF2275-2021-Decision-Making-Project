@@ -17,7 +17,7 @@ DICE :
 SECURITY, NORMAL, RISKY = 1, 2, 3
 ORDINARY, RESTART, PENALTY, PRISON, GAMBLE = 0, 1, 2, 3, 4
 
-inf = float('inf')
+inf = -1
 
 class Die:
     def __init__(self, die_type):
@@ -256,8 +256,8 @@ class Board:
         return landing_proba
 
     def apply_traps(self, states, does_trigger):
-        new_states = -np.ones(len(states), dtype=int)
-        extra_costs = np.zeros(len(states), dtype=float)
+        new_states = -np.ones(len(states), dtype=np.int8)
+        extra_costs = np.zeros(len(states), dtype=np.int16)
 
         square_types = self.layout[states]
 
@@ -368,7 +368,7 @@ def test_markovDecision(layout, circle, name="", verbose=False):
 
 def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7, verbose=False):
     board = Board(layout, circle)
-    nb_rolls = np.zeros((int(nb_iter), len(board.layout)), dtype=float)
+    nb_rolls = np.zeros((int(nb_iter), len(board.layout)), dtype=np.int16)
     marked = np.zeros((int(nb_iter), len(board.layout)), dtype=bool)
     states = np.zeros(int(nb_iter), dtype=np.int8)
     not_done = np.ones(int(nb_iter), dtype=bool)
@@ -393,7 +393,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         new_states = board.apply_delta(states_left, nb_steps)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
-        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int8) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
+        nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int16) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
 
         marked_left[np.arange(len(marked_left)), new_states] = True
 
