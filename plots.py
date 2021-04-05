@@ -13,6 +13,8 @@ layout_match = [
     ('Custom 2', layout_custom2)
 ]
 order = ['optimal', 'greedy', 'secure', 'normal', 'risky', 'random']
+sort_order = {'markov': 0, 'optimal': 1, 'suboptimal': 2, 'secure': 3, 'normal': 4, 'risky': 5, 'random': 6}
+
 sort_idx_with_random = np.argsort(order)
 sort_idx_without_random = np.argsort(order[:-1])
 
@@ -157,30 +159,26 @@ def graph_different_policies():
             else:
                 names_no_circle.append(r.policy_name)
                 expec_no_circle.append(r.expectation[0])
-        
+
         names_circle = np.array(names_circle)
         expec_circle = np.array(expec_circle)
         names_no_circle = np.array(names_no_circle)
         expec_no_circle = np.array(expec_no_circle)
 
-        # sort arrays
-        sort_idx = sort_idx_without_random if len(names_circle) == 5 else sort_idx_with_random
-        
-        idx_circle = np.argsort(names_circle)
-        names_circle[sort_idx] = names_circle[idx_circle]
-        expec_circle[sort_idx] = expec_circle[idx_circle]
+        idx_circle = np.argsort(names_circle)  #, key=lambda val: sort_order[val[1]])
+        names_circle = names_circle[idx_circle]
+        expec_circle = expec_circle[idx_circle]
 
-        names_no_circle = ['markov', 'optimal', 'suboptimal', 'secure', 'normal', 'risky', 'random']
-        idx_no_circle = np.argsort(names_no_circle)
-        names_no_circle[sort_idx] = names_no_circle[idx_no_circle]
-        expec_no_circle[sort_idx] = expec_no_circle[idx_no_circle]
+        idx_no_circle = np.argsort(names_no_circle)  #, key=lambda val: sort_order[val[1]])
+        names_no_circle = names_no_circle[idx_no_circle]
+        expec_no_circle = expec_no_circle[idx_no_circle]
 
         # create bars
         X_axis = np.arange(len(names_circle))
         plt.xticks(X_axis, names_circle)
-        plt.bar(X_axis - 0.2, expec_no_circle, 0.4, label='without circle', color='tab:red')
-        plt.bar(X_axis + 0.2, expec_circle, 0.4, label='with circle', color='g')
-        
+        plt.bar(X_axis - 0.2, expec_circle, 0.4, label='with circle', color="#4E79A7")
+        plt.bar(X_axis + 0.2, expec_no_circle, 0.4, label='without circle', color="#F28E2B")
+
         # labels and titles
         plt.title(f"{title}")
         plt.xlabel("Policy")
