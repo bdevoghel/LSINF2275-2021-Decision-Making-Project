@@ -15,7 +15,7 @@ from layouts import *
 #   2 for max verbose
 verbose = 1
 # number of iterations for empirical tests
-nb_iterations = 1e7
+nb_iterations = 1e6
 # filename to write results
 filename = "results_gus_layout2.txt"
 # open file in write mode
