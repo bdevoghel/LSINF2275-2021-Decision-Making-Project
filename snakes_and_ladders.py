@@ -368,6 +368,9 @@ def markovDecision(layout: np.ndarray, circle: bool):
 
 
 def test_markovDecision(layout, circle, name="", verbose=False):
+    """
+    Asserts input and output of markovDecision and prints results if verbose
+    """
     assert isinstance(layout, np.ndarray) and len(layout) == 15, f"Input layout is not a ndarray or is not of length 15"
     assert isinstance(circle, bool), f"Input circle is not a bool"
 
@@ -393,6 +396,16 @@ def test_markovDecision(layout, circle, name="", verbose=False):
 
 
 def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7, verbose=False):
+    """
+    Tests empirically
+    :param layout: the tiles composing the layout of the game
+    :param circle: whether or not the game circles
+    :param expectation: the expected mean number of turns
+    :param policy: the dice to throw for each position
+    :param nb_iter: the number of iterations for the test
+    :param verbose: printing to the standard output or not
+    """
+    # initialise variables
     board = Board(layout, circle)
     nb_rolls = np.zeros((int(nb_iter), len(board.layout)), dtype=np.int16)
     marked = np.zeros((int(nb_iter), len(board.layout)), dtype=bool)
@@ -407,18 +420,27 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
               f"\n   - policy : {policy if policy is not None else 'random die selection'}")
 
     while np.sum(not_done) != 0:
+        # only do the following for the states that are not yet at the end
         states_left = states[not_done]
         marked_left = marked[not_done]
         nb_rolls_left = nb_rolls[not_done]
 
+        # choose dice
         dice = policy[states_left] if policy is not None else np.random.randint(SECURITY, RISKY+1, len(states_left), dtype=np.int8)
 
+        # compute if traps are triggered
         trap_trigger = board.does_trigger_trap(dice)
 
+        # roll the dice
         nb_steps = board.roll_n_dice(states_left, dice)
+
+        # move each position
         new_states = board.apply_delta(states_left, nb_steps)
+
+        # apply the traps (if they trigger)
         new_states, extra_costs = board.apply_traps(new_states, trap_trigger)
 
+        # add the number of turns for each iteration
         nb_rolls_left[marked_left] += np.ones(np.sum(marked_left), dtype=np.int16) + np.repeat(extra_costs, np.sum(marked_left, axis=1))
 
         marked_left[np.arange(len(marked_left)), new_states] = True
@@ -428,6 +450,7 @@ def test_empirically(layout, circle, expectation=None, policy=None, nb_iter=1e7,
         marked[not_done] = marked_left
         not_done[states == len(board.layout) - 1] = False
 
+        # limit the number of rolls to 1000
         if np.all(nb_rolls[:, 0] > 1e3):
             return np.array([inf]*len(policy)), policy
 
