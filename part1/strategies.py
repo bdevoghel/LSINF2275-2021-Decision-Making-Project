@@ -12,32 +12,37 @@ each strategy should follow the same template :
     - return name and policy
 each strategy should be added to strategies to be executed in the testbench
 """
-def strategy_template(layout : list, circle : bool) -> Tuple[str, list] :
+
+
+def strategy_template(layout: list, circle: bool) -> Tuple[str, list]:
     # define policy
     policy = None
     # choose name and return
     return "name", policy
 
-def risky(layout, circle) :
+
+def risky(layout, circle):
     policy = np.ones(len(layout), dtype=int) * RISKY
 
     return "risky", policy
 
-def normal(layout, circle) :
+
+def normal(layout, circle):
     policy = np.ones(len(layout), dtype=int) * NORMAL
 
     return "normal", policy
 
-def secure(layout, circle) :
+
+def secure(layout, circle):
     policy = np.ones(len(layout), dtype=int) * SECURITY
 
     return "secure", policy
 
 
-
-def random_policy(layout, circle) :
-    policy = np.random.randint(SECURITY, RISKY+1, len(layout), dtype=int)
+def random_policy(layout, circle):
+    policy = np.random.randint(SECURITY, RISKY + 1, len(layout), dtype=int)
     return "random policy", policy
+
 
 def suboptimal(layout, circle):
     board = Board(layout, circle)
@@ -46,7 +51,8 @@ def suboptimal(layout, circle):
     for state in range(len(board.layout) - 1):
         state_expectation = {}
         for die in board.dice:
-            possible_states = board.apply_delta(np.ones(len(die.possible_steps), dtype=int)*state, np.array(die.possible_steps))
+            possible_states = board.apply_delta(np.ones(len(die.possible_steps), dtype=int) * state,
+                                                np.array(die.possible_steps))
             trapped_states, extra_cost = board.apply_traps(possible_states, np.ones(len(possible_states), dtype=bool))
 
             normal_dists = mean_dist_to_objective(possible_states)
@@ -63,6 +69,7 @@ def suboptimal(layout, circle):
 
     return "greedy", policy
 
+
 # -----------------------------------------------------------------------------
 # Other functions
 # -----------------------------------------------------------------------------
@@ -77,9 +84,10 @@ def mean_dist_to_objective(states):
     dists[idx] = 14 - states[idx]
 
     idx = states <= 2
-    dists[idx] = 12 - states[idx] # mean of distance to objective considering two lanes
+    dists[idx] = 12 - states[idx]  # mean of distance to objective considering two lanes
 
     return np.mean(dists)
+
 
 # -----------------------------------------------------------------------------
 # List of strategies
@@ -89,8 +97,9 @@ def mean_dist_to_objective(states):
 # each strategy should return a name and a np.array of dice (integers)
 strategies = [risky, normal, secure, suboptimal]
 
-def get_policies(layout, circle) :
+
+def get_policies(layout, circle):
     policies = []
-    for strat in strategies :
+    for strat in strategies:
         policies.append(strat(layout, circle))
     return policies
