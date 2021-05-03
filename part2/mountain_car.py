@@ -11,22 +11,27 @@ up momentum. Here, the reward is greater if you spend less energy to reach the g
 env.reset()
 done = False
 
-print(f"Observation space           : {env.observation_space}")
-print(f"Limits of observation space : high={env.observation_space.high},\t low={env.observation_space.low}")
-print(f"Action space                : {env.action_space}")
+print(f"Limits of observation space (position, speed)                   : low={env.observation_space.low}, high={env.observation_space.high}")
+print(f"Limits of action space (~acceleration)                          : low={env.action_space.low}, high={env.action_space.high}")
+print(f"Reward range (reward is inversely proportional to spent energy) : {env.reward_range}")
 
-n_episodes = 3
+n_episodes = 1
+n_steps = 100
+
 for i_episode in range(n_episodes):
     print(f"- Starting episode {i_episode + 1}/{n_episodes}")
     observation = env.reset()
-    for t in range(100):
+    print(observation)
+    for t in range(n_steps):
         env.render()
-        print(observation)
         action = env.action_space.sample()  # take a random action
         observation, reward, done, info = env.step(action)
+        print(observation, reward)
 
         if done:
-            print(f"Episode finished after {t+1} timesteps with reward {reward}")
+            print(f"Episode finished after {t+1} timesteps with reward={reward}")
             break
+    print(f"- End of episode {i_episode + 1}/{n_episodes}")
+
 
 env.close()
