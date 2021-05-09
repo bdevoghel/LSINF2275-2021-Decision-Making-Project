@@ -3,6 +3,9 @@ import numpy as np
 
 import gym  # doc available here : https://gym.openai.com/docs/
 
+from sklearn.neural_network import MLPRegressor
+
+
 env = gym.make('MountainCarContinuous-v0')
 """
 From https://gym.openai.com/envs/MountainCarContinuous-v0/ : A car is on a one-dimensional track, positioned 
@@ -68,6 +71,15 @@ class Q_learning:
             self.epsilon -= self.start_epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
 
 
+class DeepQ_learning:
+    def __init__(self, mlp_args, n_actions=20, action_range=(-1, 1)):
+        self.mlp = MLPRegressor(**mlp_args)
+        self.discout_factor = 0.95
+
+        action_step = (action_range[1] - action_range[0]) / n_actions
+        self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
+
+
 def q_learning(n_episodes=10000, verbose=1000):
     env.reset()
 
@@ -114,6 +126,43 @@ def q_learning(n_episodes=10000, verbose=1000):
         agent.decay(i_episode)
 
     env.close()
+
+
+def deep_rl(n_episodes=10000, verbose=100):
+    env.reset()
+
+    mlp = MLPRegressor(hidden_layer_sizes=(5, 5), activation='logistic', solver='lbfgs', alpha=0.0001, max_iter=200, random_state=None, tol=0.0001, verbose=False, warm_start=True)
+
+    # TODO instead of fixed nb episodes : define stopping criterion based on number of stable final states
+    for i_episode in range(n_episodes):
+        if i_episode % verbose == 0:
+            print(f"EPISODE {i_episode + 1}/{n_episodes}")
+
+        observation = env.reset()
+        done = False
+        t = 0
+
+    #     while not done:
+    #         t += 1
+    #         if i_episode % verbose == 0:
+    #             env.render()
+    #
+    #         new_q = []
+    #         for action, q_sa in zip(action_space, mlp.predict(observation)):
+    #             obs, r, done, info = env.step(action, apply=False)
+    #             new_q.append(r + gamma * np.max(mlp.predict(obs)) - q_sa)
+    #
+    #         mlp.fit(np.array(observation), new_q)
+    #
+    #         action = action_space[np.argmax(new_q)]
+    #         observation, reward, done, info = env.step(action)
+    #
+    #         if done:
+    #             if 'TimeLimit.truncated' not in info:
+    #                 print(f"   - episode {i_episode + 1} finished after {t} timesteps with reward={reward:>.6f}")
+    #             break
+    #
+    # env.close()
 
 
 if __name__ == '__main__':
