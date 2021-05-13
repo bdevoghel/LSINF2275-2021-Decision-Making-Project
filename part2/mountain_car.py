@@ -221,7 +221,7 @@ def deep_rl(n_episodes=10000, verbose=100):
             actions.append(agent.action2value(action))
 
             if done:
-                print(f"{np.max(observations, axis=0)}, {np.max(np.array(actions))}")
+                # print(f"{np.max(observations, axis=0)}, {np.max(np.array(actions))}")
                 if 'TimeLimit.truncated' not in info:
                     print(f"   - episode {i_episode + 1} finished after {t} timesteps with mean(episode_rewards)={np.mean(episode_rewards)}")
                 break
