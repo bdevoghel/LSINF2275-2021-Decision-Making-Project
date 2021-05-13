@@ -165,6 +165,7 @@ def q_learning(n_episodes=10000, verbose=1000):
                 break
 
         agent.decay(i_episode)
+        agent.learn()
 
     env.close()
 
