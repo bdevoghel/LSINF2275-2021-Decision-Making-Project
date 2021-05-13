@@ -32,7 +32,7 @@ class Q_learning:
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
         self.learning_rate = 0.1
-        self.discout_factor = 0.95
+        self.discount_factor = 0.95
         self.epsilon = 0.7  # exploration-exploitation factor; the greater, the more probable it is to explore (i.e. prefer random over optimal)
         self.start_epsilon = self.epsilon
 
@@ -53,7 +53,7 @@ class Q_learning:
         new_obs = self.observation2idx(new_observation)
         self.Q[prev_obs, action] += \
             self.learning_rate * (reward
-                                  + self.discout_factor * np.max(self.Q[new_obs])
+                                  + self.discount_factor * np.max(self.Q[new_obs])
                                   - self.Q[prev_obs, action])
 
     def get_best_action(self, observation):
@@ -72,13 +72,54 @@ class Q_learning:
 
 
 class DeepQ_learning:
-    def __init__(self, mlp_args, n_actions=20, action_range=(-1, 1)):
+    def __init__(self, mlp_args, n_actions=20, action_range=(-1, 1), observation_range={'speed': (-1, 1), 'position': (-1, 1)}):
+        self.observation_range = observation_range
+        self.action_range = action_range
         self.mlp = MLPRegressor(**mlp_args)
-        self.discout_factor = 0.95
+        self.discount_factor = 0.95
+        self.epsilon = 0.7  # exploration-exploitation factor; the greater, the more probable it is to explore (i.e. prefer random over optimal)
+        self.start_epsilon = self.epsilon
+
+        self.x, self.y = [], []
+        self.batch_size = 200
 
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
+    def first_fit(self):
+        x = np.array([[np.mean(self.observation_range['position']), np.mean(self.observation_range['speed'])]])
+        y = np.random.uniform(*self.action_range, size=(1, len(self.actions)))
+        self.mlp.fit(x, y)
+
+    def set_decay_values(self, epsilon_decay_start, epsilon_decay_end):
+        self.epsilon_decay_start = epsilon_decay_start
+        self.epsilon_decay_end   = epsilon_decay_end
+
+    def decay(self, i_episode):
+        if self.epsilon_decay_start <= i_episode <= self.epsilon_decay_end:
+            self.epsilon -= self.start_epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
+
+    def get_best_action(self, observation):
+        if np.random.rand() > self.epsilon:
+            return np.argmax(self.mlp.predict(observation[None, :])[0, :])
+        else:
+            return np.random.randint(0, len(self.actions))
+
+    def action2value(self, action):
+        return [self.actions[action]]
+
+    def update(self, observation, action, new_observation, reward):
+        old_Q = self.mlp.predict(observation[None, :])[0, :]
+        new_Q = self.mlp.predict(new_observation[None, :])[0, :]
+
+        old_Q[action] = reward + self.discount_factor * np.max(new_Q)
+
+        self.x.append(observation)
+        self.y.append(old_Q)
+
+    def learn(self):
+        self.mlp.fit(np.array(self.x), np.array(self.y))
+        self.x, self.y = [], []
 
 def q_learning(n_episodes=10000, verbose=1000):
     env.reset()
@@ -131,40 +172,65 @@ def q_learning(n_episodes=10000, verbose=1000):
 def deep_rl(n_episodes=10000, verbose=100):
     env.reset()
 
-    mlp = MLPRegressor(hidden_layer_sizes=(5, 5), activation='logistic', solver='lbfgs', alpha=0.0001, max_iter=200, random_state=None, tol=0.0001, verbose=False, warm_start=True)
+    mlp_args = {'hidden_layer_sizes': (5, 15),
+                'activation': 'logistic',
+                'solver': 'lbfgs',
+                'alpha': 0.0001,
+                'max_iter': 10000,
+                'random_state': None,
+                'tol': 0.0001,
+                'verbose': False,
+                'warm_start': True}
 
+    agent = DeepQ_learning(mlp_args, 50,
+                           action_range=(env.action_space.low, env.action_space.high),
+                           observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
+                                              'speed': (env.observation_space.low[1], env.observation_space.high[1])},)
+
+    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes // 2)
+    agent.first_fit()
     # TODO instead of fixed nb episodes : define stopping criterion based on number of stable final states
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
             print(f"EPISODE {i_episode + 1}/{n_episodes}")
 
-        observation = env.reset()
+        observation = np.array(env.reset())
+
+        episode_rewards = []
+        observations = []
+        actions = []
+
         done = False
         t = 0
 
-    #     while not done:
-    #         t += 1
-    #         if i_episode % verbose == 0:
-    #             env.render()
-    #
-    #         new_q = []
-    #         for action, q_sa in zip(action_space, mlp.predict(observation)):
-    #             obs, r, done, info = env.step(action, apply=False)
-    #             new_q.append(r + gamma * np.max(mlp.predict(obs)) - q_sa)
-    #
-    #         mlp.fit(np.array(observation), new_q)
-    #
-    #         action = action_space[np.argmax(new_q)]
-    #         observation, reward, done, info = env.step(action)
-    #
-    #         if done:
-    #             if 'TimeLimit.truncated' not in info:
-    #                 print(f"   - episode {i_episode + 1} finished after {t} timesteps with reward={reward:>.6f}")
-    #             break
-    #
-    # env.close()
+        while not done:
+            t += 1
+
+            if i_episode % verbose == 0:
+                env.render()
+
+            action = agent.get_best_action(observation)
+
+            prev_observation = observation
+            observation, reward, done, info = env.step(agent.action2value(action))
+
+            agent.update(prev_observation, action, observation, reward)
+
+            episode_rewards.append(reward)
+            observations.append(observation)
+            actions.append(agent.action2value(action))
+
+            if done:
+                print(f"{np.max(observations, axis=0)}, {np.max(np.array(actions))}")
+                if 'TimeLimit.truncated' not in info:
+                    print(f"   - episode {i_episode + 1} finished after {t} timesteps with mean(episode_rewards)={np.mean(episode_rewards)}")
+                break
+        agent.decay(i_episode)
+
+    env.close()
+
 
 
 if __name__ == '__main__':
-    q_learning()
-    # deep_rl()
+    # q_learning()
+    deep_rl()
