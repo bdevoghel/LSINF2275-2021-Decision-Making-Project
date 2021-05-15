@@ -4,17 +4,18 @@ import re
 from shutil import copyfile
 
 nb_episodes = 10000
+filename = "logs/tmp_logs.txt"
 
 episodes = []
 rewards = []
 rewards_with_failed = []
 last_episode = 1
 do_record = False
-with open("logs/tmp_logs.txt", 'r') as logs:
+with open(filename, 'r') as logs:
     for line in logs:
         if do_record:
             print(line)
-            copyfile("logs/tmp_logs.txt", f"logs/{re.sub(':', '_', re.sub(' ', '', line.strip()))}")
+            copyfile(filename, f"logs/{re.sub(':', '_', re.sub(' ', '', line.strip()))}")
             do_record = False
         if line.startswith("AGENT"):
             do_record = True
