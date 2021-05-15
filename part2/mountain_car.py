@@ -182,7 +182,7 @@ class SARSA(QLearning):
         self.M = np.inf
 
     def get_parameters(self):
-        return {**Q_learning.get_parameters(self),
+        return {**QLearning.get_parameters(self),
                 "lookahead": self.lookahead}
 
 
