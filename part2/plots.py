@@ -1,15 +1,24 @@
 from matplotlib import pyplot as plt
 import numpy as np
 import re
+from shutil import copyfile
+
+nb_episodes = 10000
 
 episodes = []
 rewards = []
 rewards_with_failed = []
 last_episode = 1
-with open('logs.txt', 'r') as logs:
+do_record = False
+with open("logs/tmp_logs.txt", 'r') as logs:
     for line in logs:
+        if do_record:
+            copyfile("logs/tmp_logs.txt", f"logs/{re.sub(':', '_', re.sub(' ', '', line.strip()))}")
+            do_record = False
+        if line.startswith("AGENT"):
+            do_record = True
         if line.startswith("   - episode"):
-            line = re.split(' |=', line)
+            line = re.split(" |=", line)
             episode = int(line[5])
             reward = float(line[12])
 
@@ -18,6 +27,10 @@ with open('logs.txt', 'r') as logs:
             rewards_with_failed += [0.0 for _ in range(episode-last_episode)]  # TODO use real reward (should be negative)
             rewards_with_failed.append(reward)
             last_episode = episode + 1
+    if episode != nb_episodes:
+        rewards_with_failed += [0.0 for _ in range(nb_episodes+1 - last_episode)]
+
+assert len(rewards_with_failed) == nb_episodes, f"{len(rewards_with_failed)}"
 
 every_episode_step = 100
 every_episodes = []
