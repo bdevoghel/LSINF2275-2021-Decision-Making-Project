@@ -161,11 +161,11 @@ def q_learning(n_episodes=10000, verbose=1000):
 
             if done:
                 if 'TimeLimit.truncated' not in info:
-                    print(f"   - episode {i_episode + 1} finished after {t} timesteps with mean(episode_rewards)={np.mean(episode_rewards)}")
+                    print(f"   - episode {i_episode + 1} finished after {t} timesteps with sum(episode_rewards)={np.sum(episode_rewards)}")
                 break
 
         agent.decay(i_episode)
-        agent.learn()
+        # agent.learn()
 
     env.close()
 
@@ -231,7 +231,6 @@ def deep_rl(n_episodes=10000, verbose=100):
     env.close()
 
 
-
 if __name__ == '__main__':
-    # q_learning()
-    deep_rl()
+    q_learning()
+    # deep_rl()
