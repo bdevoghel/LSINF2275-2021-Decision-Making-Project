@@ -39,7 +39,7 @@ class Agent:
     def action2value(self, action):
         raise NotImplementedError("action2value not implemented")
 
-    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
+    def update(self, prev_observation, action, new_observation, reward, done, info):
         raise NotImplementedError("update not implemented")
 
     def get_best_action(self, observation):
@@ -106,7 +106,7 @@ class QLearning(Agent):
     def action2value(self, action):
         return [self.actions[action]]
 
-    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
+    def update(self, prev_observation, action, new_observation, reward, done, info):
         prev_obs = self.observation2idx(prev_observation)
         new_obs = self.observation2idx(new_observation)
         future_reward = np.max(self.Q[new_obs])
@@ -152,7 +152,7 @@ class SARSA(QLearning):
         self.cached_actions.append(action)
         return action
 
-    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
+    def update(self, prev_observation, action, new_observation, reward, done, info):
         # https://medium.com/zero-equals-false/n-step-td-method-157d3875b9cb
         if self.step == 0:
             self.cached_states.append(prev_observation)
@@ -222,7 +222,7 @@ class DeepQLearning(Agent):
     def action2value(self, action):
         return [self.actions[action]]
 
-    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
+    def update(self, prev_observation, action, new_observation, reward, done, info):
         old_Q = self.mlp.predict(prev_observation[None, :])[0, :]
         new_Q = self.mlp.predict(new_observation[None, :])[0, :]
 
@@ -260,7 +260,7 @@ class BackwardsSARSA(QLearning):
         self.backwards_discount_factor = backwards_discount_factor
         self.M = []
 
-    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
+    def update(self, prev_observation, action, new_observation, reward, done, info):
         prev_obs_idx = self.observation2idx(prev_observation)
         new_obs_idx = self.observation2idx(new_observation)
         future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
