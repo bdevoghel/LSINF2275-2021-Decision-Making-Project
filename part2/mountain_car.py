@@ -288,8 +288,6 @@ class BackwardsSARSA(QLearning):
                                       - self.Q[prev_obs_idx, action])
 
     def new_episode(self):
-        self.cached_action = None
-        self.cached_obs = None
         self.M.append([])
 
     def get_parameters(self):
