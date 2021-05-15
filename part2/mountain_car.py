@@ -317,14 +317,14 @@ class BackwardsSARSA(QLearning):
         future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
 
         # store values for i
-        self.M[-1].append((prev_obs_idx, action, reward, new_observation))
+        self.M[-1].append((prev_obs_idx, action, reward, new_obs_idx))
 
-        if done:
+        if done and 'TimeLimit.truncated' not in info:
             # terminal state (eq 11)
             for j in range(len(self.M)):
                 for t in range(len(self.M[-j])):
-                    new_obs_idx = self.observation2idx(new_observation)
-                    prev_obs_idx, action, reward, new_observation = self.M[-j][t]
+                    prev_obs_idx, action, reward, new_obs_idx = self.M[-j][t]
+                    new_observation = self.observation2idx(new_obs_idx)
                     future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
                     self.Q[prev_obs_idx, action] += \
                         self.backwards_learning_rate * (reward
