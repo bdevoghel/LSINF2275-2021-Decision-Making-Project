@@ -62,7 +62,7 @@ class Agent:
         raise NotImplementedError("verbose_episode not implemented (best practice : put changing parameters")
 
     def save(self):
-        file = open(f'{self.__class__.__name__}.p', 'wb')
+        file = open(f'pickle/{self.__class__.__name__}.p', 'wb')
         pickle.dump(self, file)
         file.close()
 
@@ -122,7 +122,8 @@ class Q_learning(Agent):
 
 
 class SARSA(Q_learning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
         Q_learning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
         self.cached_action = None
@@ -286,7 +287,6 @@ if __name__ == '__main__':
     deep_agent = DeepQ_learning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
                                 observation_range=observation_range,
                                 action_range=action_range)
-
 
     agent = sarsa_agent
     learning(agent, verbose=1000, n_episodes=10000)
