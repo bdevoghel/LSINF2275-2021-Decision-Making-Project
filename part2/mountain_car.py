@@ -17,6 +17,7 @@ enough to scale the mountain in a single pass. Therefore, the only way to succee
 up momentum. Here, the reward is greater if you spend less energy to reach the goal 
 """
 
+
 class Agent:
     def __init__(self, epsilon=0.5, discount_factor=0.95):
         self.name = "AbstractAgent"
@@ -76,11 +77,14 @@ class Agent:
 class QLearning(Agent):
     def __init__(self, epsilon, discount_factor, learning_rate=3e-2, n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), action_strategy='boltzmann'):
+                 action_range=(-1, 1), action_strategy='boltzmann', init_strategy='random'):
         Agent.__init__(self, epsilon, discount_factor)
         self.name = self.__class__.__name__
 
-        self.Q = np.random.rand(n_observations**2, n_actions)
+        self.observation2idx_cache = {}
+
+        self.init_strategy = init_strategy
+        self.Q = np.random.rand(n_observations**2, n_actions) if init_strategy == 'random' else np.full((n_observations**2, n_actions), -np.inf)
 
         pos_step = (observation_range['position'][1] - observation_range['position'][0]) / n_observations
         positions = np.arange(*map(lambda x: x + pos_step, observation_range['position']), pos_step)
@@ -98,10 +102,17 @@ class QLearning(Agent):
         self.use_boltzmann = action_strategy == 'boltzmann'
 
     def observation2idx(self, observation):  # TODO to optimize (is slow)
+        obs_bytes = observation.tobytes()
+        if obs_bytes in self.observation2idx_cache:
+            return self.observation2idx_cache[obs_bytes]
+
         diff = self.observations - np.array(observation)
         norm = np.linalg.norm(diff, axis=-1)
         norm[(diff < 0).any(axis=-1)] = np.inf
-        return np.argmin(norm)
+        result = np.argmin(norm)
+
+        self.observation2idx_cache[obs_bytes] = result
+        return result
 
     def action2value(self, action):
         return [self.actions[action]]
@@ -131,13 +142,47 @@ class QLearning(Agent):
     def get_parameters(self):
         return {**Agent.get_parameters(self),
                 "learning_rate": self.learning_rate,
-                "action_strategy": "boltzmann" if self.use_boltzmann else "simulated annealing"}
+                "action_strategy": "boltzmann" if self.use_boltzmann else "simulated annealing",
+                "init_strategy":self.init_strategy}
 
     def verbose_episode(self):
         return f"epsilon={self.epsilon:.4f}"
 
 
 class SARSA(QLearning):
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+                 action_range=(-1, 1)):
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+        self.cached_action = None
+        self.cached_obs = None
+
+    def get_best_action(self, observation, cached=True):
+        if not cached or self.cached_action is None:
+            self.cached_obs = observation
+            self.cached_action = QLearning.get_best_action(self, observation)
+            return self.cached_action
+        else:
+            if not np.all(self.cached_obs == observation):
+                raise ValueError('wrong observation')
+            return self.cached_action
+
+    def update(self, prev_observation, action, new_observation, reward, done, info):
+        prev_obs = self.observation2idx(prev_observation)
+        new_obs = self.observation2idx(new_observation)
+        future_reward = self.Q[new_obs, self.get_best_action(new_observation, cached=False)]
+
+        self.Q[prev_obs, action] += \
+            self.learning_rate * (reward
+                                  + self.discount_factor * future_reward
+                                  - self.Q[prev_obs, action])
+
+    def new_episode(self):
+        self.cached_action = None
+        self.cached_obs = None
+
+
+class NStepSARSA(QLearning):
     def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1), action_strategy='simulated annealing', lookahead=5):
         QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy)
@@ -157,6 +202,9 @@ class SARSA(QLearning):
         if self.step == 0:
             self.cached_states.append(prev_observation)
 
+        # goal reached, finishing to update Q
+        self.step = self.step if done is not None else self.step + 1
+
         if self.step < self.M:
             # self.cached_actions.append(action)
             self.cached_rewards.append(reward)
@@ -168,12 +216,15 @@ class SARSA(QLearning):
         tau = self.step - self.lookahead + 1
 
         if tau >= 0:
-            G = 0.
-            for i in range(tau+1, min(tau+self.lookahead, self.M)):
+            G = 0.  # expected reward
+            for i in range(tau+1, min(tau+self.lookahead, self.M) + 1):
                 G += self.discount_factor ** (i - tau - 1) * self.cached_rewards[i]
-            if tau + self.lookahead - 1 < self.M:
+            if tau + self.lookahead < self.M:
                 G += self.discount_factor ** self.lookahead * self.Q[self.observation2idx(self.cached_states[tau+self.lookahead]), self.cached_actions[tau+self.lookahead]]
             self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]] += self.learning_rate * (G - self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]])
+
+        if self.step + 1 >= self.M and tau < self.M - 1:
+            self.update(None, None, None, None, None)  # reached end of episode but needs to update Q
 
     def new_episode(self):
         self.cached_actions = [-1]
@@ -326,6 +377,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
 
             # execute action
             observation, reward, done, info = env.step(agent.action2value(action))
+            observation = np.round(observation, 5)
             episode_rewards.append(reward)
 
             # learn
@@ -350,13 +402,19 @@ if __name__ == '__main__':
                          action_range=action_range,
                          action_strategy='simulated annealing')
 
-    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
-                         observation_range=observation_range,
-                         action_range=action_range)
+    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02,
+                        n_observations=30, n_actions=10,
+                        observation_range=observation_range,
+                        action_range=action_range)
 
     backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30, n_actions=10, backwards_learning_rate=0.2, backwards_discount_factor=0.99,
                          observation_range=observation_range,
                          action_range=action_range)
+
+    nstep_sarsa_agent = NStepSARSA(lookahead=10, epsilon=0.5, discount_factor=0.99, learning_rate=0.02,
+                                   n_observations=30, n_actions=10,
+                                   observation_range=observation_range,
+                                   action_range=action_range)
 
     mlp_args = {'hidden_layer_sizes': (8, 8),
                 'activation': 'relu',

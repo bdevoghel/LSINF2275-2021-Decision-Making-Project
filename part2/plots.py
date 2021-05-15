@@ -13,6 +13,7 @@ do_record = False
 with open("logs/tmp_logs.txt", 'r') as logs:
     for line in logs:
         if do_record:
+            print(line)
             copyfile("logs/tmp_logs.txt", f"logs/{re.sub(':', '_', re.sub(' ', '', line.strip()))}")
             do_record = False
         if line.startswith("AGENT"):
