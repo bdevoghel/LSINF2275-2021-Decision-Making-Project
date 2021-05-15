@@ -77,7 +77,7 @@ class Agent:
 class QLearning(Agent):
     def __init__(self, epsilon, discount_factor, learning_rate=3e-2, n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), action_strategy='boltzmann', init_strategy='random'):
+                 action_range=(-1, 1), action_strategy='simulated annealing', init_strategy='random'):
         Agent.__init__(self, epsilon, discount_factor)
         self.name = self.__class__.__name__
 
@@ -368,7 +368,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
         episode_rewards = []
         agent.step = 0
         while not done:
-            if i_episode % verbose == 0:
+            if i_episode % verbose == 0 and i_episode != 0 or i_episode == n_episodes-1:
                 env.render()
 
             # choose action
@@ -430,6 +430,6 @@ if __name__ == '__main__':
                                 observation_range=observation_range,
                                 action_range=action_range)
 
-    agent = q_agent
+    agent = backwards_sarsa_agent
     learning(agent, verbose=1000, n_episodes=10000)
     agent.save()
