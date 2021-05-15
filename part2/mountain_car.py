@@ -6,6 +6,8 @@ import gym  # doc available here : https://gym.openai.com/docs/
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 
+import pickle
+
 
 env = gym.make('MountainCarContinuous-v0')
 """
@@ -47,6 +49,9 @@ class Agent:
         if self.epsilon_decay_start <= i_episode <= self.epsilon_decay_end:
             self.epsilon -= self.start_epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
 
+    def new_episode(self):
+        pass
+
     def get_parameters(self):
         return {"epsilon": self.epsilon,
                 "discount_factor": self.discount_factor,
@@ -55,6 +60,11 @@ class Agent:
 
     def verbose_episode(self):
         raise NotImplementedError("verbose_episode not implemented (best practice : put changing parameters")
+
+    def save(self):
+        file = open(f'{self.__class__.__name__}.p', 'wb')
+        pickle.dump(self, file)
+        file.close()
 
 
 class Q_learning(Agent):
@@ -91,9 +101,10 @@ class Q_learning(Agent):
     def update(self, prev_observation, action, new_observation, reward):
         prev_obs = self.observation2idx(prev_observation)
         new_obs = self.observation2idx(new_observation)
+        future_reward = np.max(self.Q[new_obs])
         self.Q[prev_obs, action] += \
             self.learning_rate * (reward
-                                  + self.discount_factor * np.max(self.Q[new_obs])
+                                  + self.discount_factor * future_reward
                                   - self.Q[prev_obs, action])
 
     def get_best_action(self, observation):
@@ -108,6 +119,38 @@ class Q_learning(Agent):
 
     def verbose_episode(self):
         return f"epsilon={self.epsilon:.4f}"
+
+
+class SARSA(Q_learning):
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+                 action_range=(-1, 1)):
+        Q_learning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+        self.cached_action = None
+        self.cached_obs = None
+
+    def get_best_action(self, observation, cached=True):
+        if not cached or self.cached_action is None:
+            self.cached_obs = observation
+            self.cached_action = Q_learning.get_best_action(self, observation)
+            return self.cached_action
+        else:
+            if not np.all(self.cached_obs == observation):
+                raise ValueError('wrong observation')
+            return self.cached_action
+
+    def update(self, prev_observation, action, new_observation, reward):
+        prev_obs = self.observation2idx(prev_observation)
+        new_obs = self.observation2idx(new_observation)
+        future_reward = self.Q[new_obs, self.get_best_action(new_observation, cached=False)]
+
+        self.Q[prev_obs, action] += \
+            self.learning_rate * (reward
+                                  + self.discount_factor * future_reward
+                                  - self.Q[prev_obs, action])
+
+    def new_episode(self):
+        self.cached_action = None
+        self.cached_obs = None
 
 
 class DeepQ_learning(Agent):
@@ -191,6 +234,7 @@ def learning(agent, n_episodes, verbose=1000):
         if i_episode % verbose == 0:
             print(f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
         observation = env.reset()
+        agent.new_episode()
         done = False
         t = 0
         episode_rewards = []
@@ -204,7 +248,7 @@ def learning(agent, n_episodes, verbose=1000):
 
             observation, reward, done, info = env.step(agent.action2value(action))
             episode_rewards.append(reward)
-            
+
             agent.update(prev_observation, action, observation, reward)
 
             if done:
@@ -224,6 +268,11 @@ if __name__ == '__main__':
                          observation_range=observation_range,
                          action_range=action_range)
 
+    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+                         observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
+                                            'speed': (env.observation_space.low[1], env.observation_space.high[1])},
+                         action_range=(env.action_space.low, env.action_space.high))
+
     mlp_args = {'hidden_layer_sizes': (8, 8),
                 'activation': 'relu',
                 'solver': 'adam',
@@ -238,4 +287,7 @@ if __name__ == '__main__':
                                 observation_range=observation_range,
                                 action_range=action_range)
 
-    learning(q_agent, n_episodes=10000, verbose=1000)
+
+    agent = sarsa_agent
+    learning(agent, verbose=1000, n_episodes=10000)
+    agent.save()
