@@ -31,9 +31,9 @@ class Q_learning:
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
-        self.learning_rate = 0.1
+        self.learning_rate = 0.03
         self.discount_factor = 0.95
-        self.epsilon = 0.7  # exploration-exploitation factor; the greater, the more probable it is to explore (i.e. prefer random over optimal)
+        self.epsilon = 0.5  # exploration-exploitation factor; the greater, the more probable it is to explore (i.e. prefer random over optimal)
         self.start_epsilon = self.epsilon
 
         self.epsilon_decay_start = None
@@ -121,7 +121,8 @@ class DeepQ_learning:
         self.mlp.fit(np.array(self.x), np.array(self.y))
         self.x, self.y = [], []
 
-def q_learning(n_episodes=10000, verbose=1000):
+
+def q_learning(n_episodes=10000, verbose=500):
     env.reset()
 
     print(
@@ -130,12 +131,12 @@ def q_learning(n_episodes=10000, verbose=1000):
         f"Limits of action space (~acceleration)                          : low={env.action_space.low}, high={env.action_space.high}")
     print(f"Reward range (reward is inversely proportional to spent energy) : {env.reward_range}")
 
-    agent = Q_learning(10, 20,
+    agent = Q_learning(20, 10,
                        observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
                                           'speed': (env.observation_space.low[1], env.observation_space.high[1])},
                        action_range=(env.action_space.low, env.action_space.high))
 
-    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes // 2)
+    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
     # TODO instead of fixed nb episodes : define stopping criterion based on number of stable final states
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
