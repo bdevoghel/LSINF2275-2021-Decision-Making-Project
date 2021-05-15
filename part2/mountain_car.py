@@ -62,7 +62,7 @@ class Q_learning(Agent):
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
         Agent.__init__(self, epsilon, discount_factor)
-        self.name = "Q_learning"
+        self.name = self.__class__.__name__
 
         self.Q = np.random.rand(n_observations**2, n_actions)
 
@@ -107,7 +107,7 @@ class Q_learning(Agent):
                 "learning_rate": self.learning_rate}
 
     def verbose_episode(self):
-        return f"epsilon={self.epsilon}"
+        return f"epsilon={self.epsilon:.4f}"
 
 
 class DeepQ_learning(Agent):
@@ -115,7 +115,7 @@ class DeepQ_learning(Agent):
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
         Agent.__init__(self, epsilon, discount_factor)
-        self.name = "DeepQ_learning"
+        self.name = self.__class__.__name__
 
         self.observation_range = observation_range
         self.action_range = action_range
@@ -171,7 +171,7 @@ class DeepQ_learning(Agent):
                 "batch_size": self.batch_size}
 
     def verbose_episode(self):
-        return f"epsilon={self.epsilon}"
+        return f"epsilon={self.epsilon:.4f}"
 
 
 def learning(agent, n_episodes, verbose=1000):
@@ -218,7 +218,7 @@ def learning(agent, n_episodes, verbose=1000):
 if __name__ == '__main__':
     observation_range = {'position': (env.observation_space.low[0], env.observation_space.high[0]),
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
-    action_range=(env.action_space.low, env.action_space.high)
+    action_range = (env.action_space.low, env.action_space.high)
 
     q_agent = Q_learning(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
                          observation_range=observation_range,
@@ -238,4 +238,4 @@ if __name__ == '__main__':
                                 observation_range=observation_range,
                                 action_range=action_range)
 
-    learning(q_agent, n_episodes=10000, verbose=100)
+    learning(q_agent, n_episodes=10000, verbose=1000)
