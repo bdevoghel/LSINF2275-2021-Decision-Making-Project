@@ -2,12 +2,14 @@ from matplotlib import pyplot as plt
 import numpy as np
 import re
 
-episodes = np.ones(10000)
-with open('logs_w_energy_consumption.txt', 'r') as logs:
+episodes = []
+mean_rewards = []
+with open('logs.txt', 'r') as logs:
     for line in logs:
         if line.startswith("   - episode"):
             line = re.split(' |=', line)
-            episodes[int(line[5]) - 1] = float(line[8])
+            episodes.append(int(line[5]))
+            mean_rewards.append(float(line[12]))
 
-plt.plot(np.arange(len(episodes))[-1000:], episodes[-1000:], 'o')
+plt.scatter(episodes, mean_rewards)
 plt.show()
