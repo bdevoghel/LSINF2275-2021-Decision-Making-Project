@@ -370,10 +370,6 @@ if __name__ == '__main__':
 
     file = open("results.txt", "w")
 
-    deep_agent = DeepQLearning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
-                                observation_range=observation_range,
-                                action_range=action_range)
-
     agent = backwards_sarsa_agent
     learning(agent, verbose=1000, n_episodes=10000, file=file)
     agent.save()
