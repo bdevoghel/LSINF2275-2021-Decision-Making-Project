@@ -148,7 +148,7 @@ class SARSA(QLearning):
         self.lookahead = lookahead
 
     def get_best_action(self, observation):
-        action = Q_learning.get_best_action(self, observation)
+        action = QLearning.get_best_action(self, observation)
         self.cached_actions.append(action)
         return action
 
