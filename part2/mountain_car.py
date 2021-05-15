@@ -27,9 +27,10 @@ class Q_learning:
         step = (action_range[1]-action_range[0])/n_actions
         self.actions = np.arange(*map(lambda x: x+step/2, action_range), step)
 
-        self.learning_rate = 0.1
+        self.learning_rate = 0.01
         self.discout_factor = 0.95
         self.epsilon = 0.5
+        self.start_epsilon = self.epsilon
 
         self.epsilon_decay_start = None
         self.epsilon_decay_end = None
@@ -61,7 +62,7 @@ class Q_learning:
 
     def decay(self, i_episode):
         if self.epsilon_decay_end >= i_episode >= self.epsilon_decay_start:
-            self.epsilon -= self.epsilon/(self.epsilon_decay_end - self.epsilon_decay_start)
+            self.epsilon -= self.start_epsilon/(self.epsilon_decay_end - self.epsilon_decay_start)
 
 
 if __name__ == '__main__':
