@@ -21,8 +21,8 @@ class Agent:
         self.observation_range = None
         self.action_range = None
 
-        self.epsilon = 0.8
-        self.discount_factor = 0.90
+        self.epsilon = 0.5
+        self.discount_factor = 0.95
         self.start_epsilon = self.epsilon
 
         self.epsilon_decay_start = None
