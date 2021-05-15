@@ -5,3 +5,4 @@ __pycache__
 part2/logs/tmp_logs.txt
 part2/pickle
 part2/logs
+part2/results.txt

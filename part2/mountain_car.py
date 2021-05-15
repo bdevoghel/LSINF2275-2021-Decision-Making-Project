@@ -1,5 +1,7 @@
 import itertools
+from os import write
 import numpy as np
+from io import TextIOWrapper
 
 import gym  # doc available here : https://gym.openai.com/docs/
 
@@ -16,6 +18,10 @@ between two "mountains". The goal is to drive up the mountain on the right; howe
 enough to scale the mountain in a single pass. Therefore, the only way to succeed is to drive back and forth to build 
 up momentum. Here, the reward is greater if you spend less energy to reach the goal 
 """
+
+def print_and_write(f: TextIOWrapper=None, s: str=""):
+    print(s)
+    f.write(s + "\n")
 
 
 class Agent:
@@ -237,70 +243,6 @@ class NStepSARSA(QLearning):
                 "lookahead": self.lookahead}
 
 
-class DeepQLearning(Agent):
-    def __init__(self, mlp_args, epsilon, discount_factor, batch_size=1500, n_actions=20,
-                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1)):
-        Agent.__init__(self, epsilon, discount_factor)
-        self.name = self.__class__.__name__
-
-        self.observation_range = observation_range
-        self.action_range = action_range
-        self.mlp = MLPRegressor(**mlp_args)
-
-        self.x, self.y = [], []
-        self.batch_size = batch_size
-        self.mlp_args = mlp_args
-
-        action_step = (action_range[1] - action_range[0]) / n_actions
-        self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
-
-        self.first_fit()
-
-        self.scaler = None
-
-    def first_fit(self):
-        x = np.array([[np.mean(self.observation_range['position']), np.mean(self.observation_range['speed'])]])
-        y = np.random.uniform(*self.action_range, size=(1, len(self.actions)))
-        self.mlp.fit(x, y)
-
-    def get_best_action(self, observation):
-        if np.random.rand() > self.epsilon:
-            return np.argmax(self.mlp.predict(observation[None, :])[0, :])
-        else:
-            return np.random.randint(0, len(self.actions))
-
-    def action2value(self, action):
-        return [self.actions[action]]
-
-    def update(self, prev_observation, action, new_observation, reward, done, info):
-        old_Q = self.mlp.predict(prev_observation[None, :])[0, :]
-        new_Q = self.mlp.predict(new_observation[None, :])[0, :]
-
-        old_Q[action] = reward + self.discount_factor * np.max(new_Q)
-
-        self.x.append(prev_observation)
-        self.y.append(old_Q)
-
-        if len(self.x) == self.batch_size:
-            self.learn()
-
-    def learn(self):
-        if self.scaler is None:
-            self.scaler = StandardScaler()
-            self.scaler.fit(np.array(self.x))
-        self.mlp.fit(self.scaler.transform(np.array(self.x)), np.array(self.y))
-        self.x, self.y = [], []
-
-    def get_parameters(self):
-        return {**Agent.get_parameters(self),
-                "mlp_args": mlp_args,
-                "batch_size": self.batch_size}
-
-    def verbose_episode(self):
-        return f"epsilon={self.epsilon:.4f}"
-
-
 class BackwardsSARSA(QLearning):
     def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.9,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
@@ -345,23 +287,23 @@ class BackwardsSARSA(QLearning):
                   "backwards_discount_factor": self.backwards_discount_factor}
 
 
-def learning(agent:Agent, n_episodes:int, verbose=1000):
+def learning(agent:Agent, n_episodes:int, verbose=1000, file:TextIOWrapper=None):
     env.reset()
-    print("ENVIRONMENT : ")
-    print(f"   Limits of observation space (position, speed)                   : " +
+    print_and_write(file, "ENVIRONMENT : ")
+    print_and_write(file, f"   Limits of observation space (position, speed)                   : " +
                 f"low={env.observation_space.low}, high={env.observation_space.high}")
-    print(f"   Limits of action space (~acceleration)                          : " +
+    print_and_write(file, f"   Limits of action space (~acceleration)                          : " +
                 f"low={env.action_space.low}, high={env.action_space.high}")
-    print(f"   Reward range (reward is inversely proportional to spent energy) : " +
+    print_and_write(file, f"   Reward range (reward is inversely proportional to spent energy) : " +
                 f"{env.reward_range}")
 
     agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
-    print(f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
+    print_and_write(file, f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
 
     # repeat for each episode
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
-            print(f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
+            print_and_write(file, f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
         observation = env.reset()
         agent.new_episode()
         done = False
@@ -385,7 +327,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
 
             if done:
                 if 'TimeLimit.truncated' not in info:
-                    print(f"   - episode {i_episode + 1} finished after {agent.step} timesteps with sum(episode_rewards)={np.sum(episode_rewards)}")
+                    print_and_write(file, f"   - episode {i_episode + 1} finished after {agent.step} timesteps with sum(episode_rewards)={np.sum(episode_rewards)}")
                 break
             agent.step += 1
         agent.decay()
@@ -426,10 +368,13 @@ if __name__ == '__main__':
                 'verbose': False,
                 'warm_start': True}
 
+    file = open("results.txt", "w")
+
     deep_agent = DeepQLearning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
                                 observation_range=observation_range,
                                 action_range=action_range)
 
     agent = backwards_sarsa_agent
-    learning(agent, verbose=1000, n_episodes=10000)
+    learning(agent, verbose=1000, n_episodes=10000, file=file)
     agent.save()
+    file.close()
