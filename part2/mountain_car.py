@@ -4,6 +4,7 @@ import numpy as np
 import gym  # doc available here : https://gym.openai.com/docs/
 
 from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import StandardScaler
 
 
 env = gym.make('MountainCarContinuous-v0')
@@ -20,8 +21,8 @@ class Agent:
         self.observation_range = None
         self.action_range = None
 
-        self.epsilon = 0.7
-        self.discount_factor = 0.95
+        self.epsilon = 0.8
+        self.discount_factor = 0.90
         self.start_epsilon = self.epsilon
 
         self.epsilon_decay_start = None
@@ -42,11 +43,11 @@ class Agent:
 
     def decay(self, i_episode):
         if self.epsilon_decay_start <= i_episode <= self.epsilon_decay_end:
-            self.epsilon -= self.epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
+            self.epsilon -= self.start_epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
 
 
 class Q_learning(Agent):
-    def __init__(self, n_observations=10, n_actions=20, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+    def __init__(self, n_observations=30, n_actions=10, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
         Agent.__init__(self)
 
@@ -63,7 +64,7 @@ class Q_learning(Agent):
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
-        self.learning_rate = 1e-3
+        self.learning_rate = 3e-2
 
     def observation2idx(self, observation):  # TODO to optimize (is slow)
         diff = self.observations - np.array(observation)
@@ -97,12 +98,14 @@ class DeepQ_learning(Agent):
         self.mlp = MLPRegressor(**mlp_args)
 
         self.x, self.y = [], []
-        self.batch_size = 200
+        self.batch_size = 1500
 
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
         self.first_fit()
+
+        self.scaler = None
 
     def first_fit(self):
         x = np.array([[np.mean(self.observation_range['position']), np.mean(self.observation_range['speed'])]])
@@ -131,119 +134,67 @@ class DeepQ_learning(Agent):
             self.learn()
 
     def learn(self):
-        self.mlp.fit(np.array(self.x), np.array(self.y))
+        if self.scaler is None:
+            self.scaler = StandardScaler()
+            self.scaler.fit(np.array(self.x))
+        self.mlp.fit(self.scaler.transform(np.array(self.x)), np.array(self.y))
         self.x, self.y = [], []
 
 
-def q_learning(n_episodes=10000, verbose=1000):
+def learning(agent, n_episodes=10000, verbose=1000):
     env.reset()
-
     print(
         f"Limits of observation space (position, speed)                   : low={env.observation_space.low}, high={env.observation_space.high}")
     print(
         f"Limits of action space (~acceleration)                          : low={env.action_space.low}, high={env.action_space.high}")
     print(f"Reward range (reward is inversely proportional to spent energy) : {env.reward_range}")
 
-    agent = Q_learning(10, 20,
-                       observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
-                                          'speed': (env.observation_space.low[1], env.observation_space.high[1])},
-                       action_range=(env.action_space.low, env.action_space.high))
+    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
 
-    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes // 2)
-    # TODO instead of fixed nb episodes : define stopping criterion based on number of stable final states
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
-            print(f"EPISODE {i_episode + 1}/{n_episodes} - epsilon={agent.epsilon:.3f}")
-
+            print(f"EPISODE {i_episode + 1}/{n_episodes}")
         observation = env.reset()
-        episode_rewards = []
         done = False
         t = 0
-
         while not done:
             t += 1
             if i_episode % verbose == 0:
                 env.render()
 
             action = agent.get_best_action(observation)
-
             prev_observation = observation
-            observation, reward, done, info = env.step(agent.action2value(action))
 
+            observation, reward, done, info = env.step(agent.action2value(action))
             agent.update(prev_observation, action, observation, reward)
-            episode_rewards.append(reward)
 
             if done:
                 if 'TimeLimit.truncated' not in info:
-                    print(f"   - episode {i_episode + 1} finished after {t} timesteps with mean(episode_rewards)={np.mean(episode_rewards)}")
+                    print(f"   - episode {i_episode + 1} finished after {t + 1} timesteps with reward={reward:>.6f}")
                 break
-
         agent.decay(i_episode)
-
-    env.close()
-
-
-def learning(agent, n_episodes=10000, verbose=100):
-    print(
-        f"Limits of observation space (position, speed)                   : low={env.observation_space.low}, high={env.observation_space.high}")
-    print(
-        f"Limits of action space (~acceleration)                          : low={env.action_space.low}, high={env.action_space.high}")
-    print(f"Reward range (reward is inversely proportional to spent energy) : {env.reward_range}")
-
-    env.reset()
-    agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes // 2)
-
-    for i_episode in range(n_episodes):
-        if i_episode % verbose == 0:
-            print(f"EPISODE {i_episode + 1}/{n_episodes} - epsilon={agent.epsilon:.3f}")
-
-        observation = env.reset()
-        episode_rewards = []
-        done = False
-        t = 0
-
-        while not done:
-            t += 1
-            if i_episode % verbose == 0:
-                env.render()
-
-            action = agent.get_best_action(observation)
-
-            prev_observation = observation
-            observation, reward, done, info = env.step(agent.action2value(action))
-
-            agent.update(prev_observation, action, observation, reward)
-            episode_rewards.append(reward)
-
-            if done:
-                if 'TimeLimit.truncated' not in info:
-                    print(f"   - episode {i_episode + 1} finished after {t} timesteps with mean(episode_rewards)={np.mean(episode_rewards)}")
-                break
-
-        agent.decay(i_episode)
-
     env.close()
 
 
 if __name__ == '__main__':
-    q_agent = Q_learning(10, 20,
+    q_agent = Q_learning(30, 10,
                          observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
                                             'speed': (env.observation_space.low[1], env.observation_space.high[1])},
                          action_range=(env.action_space.low, env.action_space.high))
 
-    mlp_args = {'hidden_layer_sizes': (5, 15),
-                'activation': 'logistic',
-                'solver': 'lbfgs',
-                'alpha': 0.0001,
+    mlp_args = {'hidden_layer_sizes': (8, 8),
+                'activation': 'relu',
+                'solver': 'adam',
+                'alpha': 0.001,
                 'max_iter': 10000,
                 'random_state': None,
                 'tol': 0.0001,
                 'verbose': False,
                 'warm_start': True}
 
-    deep_agent = DeepQ_learning(mlp_args, n_actions=20,
+    deep_agent = DeepQ_learning(mlp_args, n_actions=10,
                                 action_range=(env.action_space.low, env.action_space.high),
                                 observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
                                                    'speed': (env.observation_space.low[1], env.observation_space.high[1])})
 
-    learning(q_agent)
+    learning(q_agent, verbose=100)
