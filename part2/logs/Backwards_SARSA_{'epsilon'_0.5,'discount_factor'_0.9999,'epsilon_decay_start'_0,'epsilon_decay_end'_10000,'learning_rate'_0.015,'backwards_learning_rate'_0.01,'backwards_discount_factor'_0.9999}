@@ -274,6 +274,7 @@ EPISODE 6001/10000 - epsilon=0.2000
    - episode 6022 finished after 797 timesteps with sum(episode_rewards)=91.29900108909597
    - episode 6024 finished after 739 timesteps with sum(episode_rewards)=90.9330012626647
    - episode 6026 finished after 990 timesteps with sum(episode_rewards)=88.46600140595422
+/usr/local/bin/python3 "/Users/augustindoultremont/Documents/Git Projects/[Q8] Data Mining & Decision Making/part2/plots.py"
    - episode 6047 finished after 723 timesteps with sum(episode_rewards)=92.3330009634494
    - episode 6074 finished after 938 timesteps with sum(episode_rewards)=90.55000125288953
    - episode 6076 finished after 739 timesteps with sum(episode_rewards)=91.83700094985953

@@ -218,7 +218,55 @@ class DeepQ_learning(Agent):
         return f"epsilon={self.epsilon:.4f}"
 
 
-def learning(agent, n_episodes, verbose=1000):
+class Backwards_SARSA(SARSA):
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.9,
+                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+                 action_range=(-1, 1)):
+        SARSA.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+
+        self.backwards_learning_rate = backwards_learning_rate 
+        self.backwards_discount_factor = backwards_discount_factor
+        self.M = []
+
+    def update(self, prev_observation, action, new_observation, reward, done=False):
+        prev_obs_idx = self.observation2idx(prev_observation)
+        new_obs_idx = self.observation2idx(new_observation)
+        future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation, cached=False)]
+
+        # store values for i
+        self.M[-1].append((prev_obs_idx, action, reward, new_observation))
+
+        if done:
+            # terminal state (eq 11)
+            for j in range(len(self.M)):
+                for t in range(len(self.M[-j])):
+                    new_obs_idx = self.observation2idx(new_observation)
+                    prev_obs_idx, action, reward, new_observation = self.M[-j][t]
+                    future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation, cached=False)]
+                    self.Q[prev_obs_idx, action] += \
+                        self.backwards_learning_rate * (reward 
+                                                        + self.backwards_discount_factor * future_reward
+                                                        - self.Q[prev_obs_idx, action])
+                                    
+        else:
+            # non-terminal state (eq 9)
+            self.Q[prev_obs_idx, action] += \
+                self.learning_rate * (reward
+                                      + self.discount_factor * future_reward
+                                      - self.Q[prev_obs_idx, action])
+
+    def new_episode(self):
+        self.cached_action = None
+        self.cached_obs = None
+        self.M.append([])
+
+    def get_parameters(self):
+        return {**SARSA.get_parameters(self),
+                  "backwards_learning_rate": self.backwards_learning_rate,
+                  "backwards_discount_factor": self.backwards_discount_factor}
+
+
+def learning(agent:Agent, n_episodes:int, verbose=1000):
     env.reset()
     print("ENVIRONMENT : ")
     print(f"   Limits of observation space (position, speed)                   : " +
@@ -231,6 +279,7 @@ def learning(agent, n_episodes, verbose=1000):
     agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
     print(f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
 
+    # repeat for each episode
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
             print(f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
@@ -244,12 +293,15 @@ def learning(agent, n_episodes, verbose=1000):
             if i_episode % verbose == 0:
                 env.render()
 
+            # choose action
             action = agent.get_best_action(observation)
             prev_observation = observation
 
+            # execute action
             observation, reward, done, info = env.step(agent.action2value(action))
             episode_rewards.append(reward)
 
+            # learn
             agent.update(prev_observation, action, observation, reward)
 
             if done:
@@ -270,9 +322,12 @@ if __name__ == '__main__':
                          action_range=action_range)
 
     sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
-                         observation_range={'position': (env.observation_space.low[0], env.observation_space.high[0]),
-                                            'speed': (env.observation_space.low[1], env.observation_space.high[1])},
-                         action_range=(env.action_space.low, env.action_space.high))
+                         observation_range=observation_range,
+                         action_range=action_range)
+
+    backwards_sarsa_agent = Backwards_SARSA(epsilon=0.5, discount_factor=0.9999, learning_rate=0.015, n_observations=30, n_actions=10, backwards_learning_rate=0.01, backwards_discount_factor=0.9999,
+                         observation_range=observation_range,
+                         action_range=action_range)
 
     mlp_args = {'hidden_layer_sizes': (8, 8),
                 'activation': 'relu',
@@ -288,6 +343,6 @@ if __name__ == '__main__':
                                 observation_range=observation_range,
                                 action_range=action_range)
 
-    agent = sarsa_agent
+    agent = backwards_sarsa_agent
     learning(agent, verbose=1000, n_episodes=10000)
     agent.save()
