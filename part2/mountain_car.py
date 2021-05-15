@@ -231,7 +231,7 @@ class BackwardsSARSA(QLearning):
     def update(self, prev_observation, action, new_observation, reward, done=False):
         prev_obs_idx = self.observation2idx(prev_observation)
         new_obs_idx = self.observation2idx(new_observation)
-        future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation, cached=False)]
+        future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
 
         # store values for i
         self.M[-1].append((prev_obs_idx, action, reward, new_observation))
@@ -242,7 +242,7 @@ class BackwardsSARSA(QLearning):
                 for t in range(len(self.M[-j])):
                     new_obs_idx = self.observation2idx(new_observation)
                     prev_obs_idx, action, reward, new_observation = self.M[-j][t]
-                    future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation, cached=False)]
+                    future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
                     self.Q[prev_obs_idx, action] += \
                         self.backwards_learning_rate * (reward 
                                                         + self.backwards_discount_factor * future_reward
@@ -256,8 +256,6 @@ class BackwardsSARSA(QLearning):
                                       - self.Q[prev_obs_idx, action])
 
     def new_episode(self):
-        self.cached_action = None
-        self.cached_obs = None
         self.M.append([])
 
     def get_parameters(self):
@@ -302,7 +300,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
             episode_rewards.append(reward)
 
             # learn
-            agent.update(prev_observation, action, observation, reward)
+            agent.update(prev_observation, action, observation, reward, done=done)
 
             if done:
                 if 'TimeLimit.truncated' not in info:
