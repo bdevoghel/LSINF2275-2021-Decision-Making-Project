@@ -39,7 +39,7 @@ class Agent:
     def action2value(self, action):
         raise NotImplementedError("action2value not implemented")
 
-    def update(self, prev_observation, action, new_observation, reward, done=False):
+    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
         raise NotImplementedError("update not implemented")
 
     def get_best_action(self, observation):
@@ -106,7 +106,7 @@ class QLearning(Agent):
     def action2value(self, action):
         return [self.actions[action]]
 
-    def update(self, prev_observation, action, new_observation, reward, done=False):
+    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
         prev_obs = self.observation2idx(prev_observation)
         new_obs = self.observation2idx(new_observation)
         future_reward = np.max(self.Q[new_obs])
@@ -152,7 +152,7 @@ class SARSA(QLearning):
         self.cached_actions.append(action)
         return action
 
-    def update(self, prev_observation, action, new_observation, reward, done=False):
+    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
         # https://medium.com/zero-equals-false/n-step-td-method-157d3875b9cb
         if self.step == 0:
             self.cached_states.append(prev_observation)
@@ -222,7 +222,7 @@ class DeepQLearning(Agent):
     def action2value(self, action):
         return [self.actions[action]]
 
-    def update(self, prev_observation, action, new_observation, reward, done=False):
+    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
         old_Q = self.mlp.predict(prev_observation[None, :])[0, :]
         new_Q = self.mlp.predict(new_observation[None, :])[0, :]
 
@@ -260,20 +260,20 @@ class BackwardsSARSA(QLearning):
         self.backwards_discount_factor = backwards_discount_factor
         self.M = []
 
-    def update(self, prev_observation, action, new_observation, reward, done=False):
+    def update(self, prev_observation, action, new_observation, reward, done=False, info=None):
         prev_obs_idx = self.observation2idx(prev_observation)
         new_obs_idx = self.observation2idx(new_observation)
         future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
 
         # store values for i
-        self.M[-1].append((prev_obs_idx, action, reward, new_observation))
+        self.M[-1].append((prev_obs_idx, action, reward, new_obs_idx))
 
-        if done:
+        if done and 'TimeLimit.truncated' not in info:
             # terminal state (eq 11)
             for j in range(len(self.M)):
                 for t in range(len(self.M[-j])):
-                    new_obs_idx = self.observation2idx(new_observation)
-                    prev_obs_idx, action, reward, new_observation = self.M[-j][t]
+                    prev_obs_idx, action, reward, new_obs_idx = self.M[-j][t]
+                    new_observation = self.observation2idx(new_obs_idx)
                     future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
                     self.Q[prev_obs_idx, action] += \
                         self.backwards_learning_rate * (reward
@@ -331,7 +331,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
             episode_rewards.append(reward)
 
             # learn
-            agent.update(prev_observation, action, observation, reward, done)
+            agent.update(prev_observation, action, observation, reward, done, info)
 
             if done:
                 if 'TimeLimit.truncated' not in info:
