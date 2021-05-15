@@ -4,3 +4,4 @@ __pycache__
 .vscode
 part2/logs/tmp_logs.txt
 part2/pickle
+part2/logs
