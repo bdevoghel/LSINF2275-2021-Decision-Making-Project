@@ -263,32 +263,30 @@ class BackwardsSARSA(QLearning):
     def update(self, prev_observation, action, new_observation, reward, done, info):
         prev_obs_idx = self.observation2idx(prev_observation)
         new_obs_idx = self.observation2idx(new_observation)
-        future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
 
         # store values for i
-        self.M[-1].append((prev_obs_idx, action, reward, new_obs_idx))
+        self.M.append((prev_obs_idx, action, reward, new_obs_idx))
+
+        # non-terminal state (eq 9)
+        future_reward = np.max(self.Q[new_obs_idx])
+        self.Q[prev_obs_idx, action] += \
+            self.learning_rate * (reward
+                                  + self.discount_factor * future_reward
+                                  - self.Q[prev_obs_idx, action])
 
         if done and 'TimeLimit.truncated' not in info:
             # terminal state (eq 11)
-            for j in range(len(self.M)):
-                for t in range(len(self.M[-j])):
-                    prev_obs_idx, action, reward, new_obs_idx = self.M[-j][t]
-                    new_observation = self.observation2idx(new_obs_idx)
-                    future_reward = self.Q[new_obs_idx, self.get_best_action(new_observation)]
-                    self.Q[prev_obs_idx, action] += \
-                        self.backwards_learning_rate * (reward
-                                                        + self.backwards_discount_factor * future_reward
-                                                        - self.Q[prev_obs_idx, action])
-
-        else:
-            # non-terminal state (eq 9)
-            self.Q[prev_obs_idx, action] += \
-                self.learning_rate * (reward
-                                      + self.discount_factor * future_reward
-                                      - self.Q[prev_obs_idx, action])
+            for j in range(len(self.M)-1, -1, -1):
+                prev_obs_idx, action, reward, new_obs_idx = self.M[j]
+                future_reward = np.max(self.Q[new_obs_idx, :])
+                self.Q[prev_obs_idx, action] += \
+                    self.backwards_learning_rate * (reward
+                                                    + self.backwards_discount_factor * future_reward
+                                                    - self.Q[prev_obs_idx, action])
 
     def new_episode(self):
-        self.M.append([])
+        QLearning.new_episode(self)
+        self.M = []
 
     def get_parameters(self):
         return {**QLearning.get_parameters(self),
@@ -347,7 +345,7 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range = (env.action_space.low, env.action_space.high)
 
-    q_agent = QLearning(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30, n_actions=10,
                          observation_range=observation_range,
                          action_range=action_range,
                          action_strategy='simulated annealing')
@@ -356,7 +354,7 @@ if __name__ == '__main__':
                          observation_range=observation_range,
                          action_range=action_range)
 
-    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.9999, learning_rate=0.015, n_observations=30, n_actions=10, backwards_learning_rate=0.01, backwards_discount_factor=0.9999,
+    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30, n_actions=10, backwards_learning_rate=0.2, backwards_discount_factor=0.99,
                          observation_range=observation_range,
                          action_range=action_range)
 
@@ -374,6 +372,6 @@ if __name__ == '__main__':
                                 observation_range=observation_range,
                                 action_range=action_range)
 
-    agent = backwards_sarsa_agent
+    agent = q_agent
     learning(agent, verbose=1000, n_episodes=10000)
     agent.save()
