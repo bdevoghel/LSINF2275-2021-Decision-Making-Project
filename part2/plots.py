@@ -46,7 +46,7 @@ for i in range(len(rewards_with_failed) // every_episode_step):
 
 
 plt.scatter(episodes, rewards, s=5, label=f"reward of episode that succeeded")
-plt.plot(every_episodes, mean_rewards, '-r', label=f"mean of rewards of last {every_episode_step} episodes")
+plt.plot(every_episodes, mean_rewards, '-r', label=f"average of last {every_episode_step} episodes' rewards")
 # plt.plot(every_episodes, min_rewards, ':k', alpha=0.9, label=f"min of rewards of last {every_episode_step} episodes")
 # plt.plot(every_episodes, max_rewards, ':k', alpha=0.9, label=f"max of rewards of last {every_episode_step} episodes")
 
