@@ -17,12 +17,14 @@ up momentum. Here, the reward is greater if you spend less energy to reach the g
 
 
 class Agent:
-    def __init__(self):
+    def __init__(self, epsilon=0.5, discount_factor=0.95):
+        self.name = "AbstractAgent"
+
         self.observation_range = None
         self.action_range = None
 
-        self.epsilon = 0.5
-        self.discount_factor = 0.95
+        self.epsilon = epsilon
+        self.discount_factor = discount_factor
         self.start_epsilon = self.epsilon
 
         self.epsilon_decay_start = None
@@ -45,12 +47,22 @@ class Agent:
         if self.epsilon_decay_start <= i_episode <= self.epsilon_decay_end:
             self.epsilon -= self.start_epsilon / (self.epsilon_decay_end - self.epsilon_decay_start)
 
+    def get_parameters(self):
+        return {"epsilon": self.epsilon,
+                "discount_factor": self.discount_factor,
+                "epsilon_decay_start": self.epsilon_decay_start,
+                "epsilon_decay_end": self.epsilon_decay_end}
+
+    def verbose_episode(self):
+        raise NotImplementedError("verbose_episode not implemented (best practice : put changing parameters")
+
 
 class Q_learning(Agent):
-    def __init__(self, n_observations=30, n_actions=10, 
+    def __init__(self, epsilon, discount_factor, learning_rate=3e-2, n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
-        Agent.__init__(self)
+        Agent.__init__(self, epsilon, discount_factor)
+        self.name = "Q_learning"
 
         self.Q = np.random.rand(n_observations**2, n_actions)
 
@@ -65,7 +77,7 @@ class Q_learning(Agent):
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
-        self.learning_rate = 3e-2
+        self.learning_rate = learning_rate
 
     def observation2idx(self, observation):  # TODO to optimize (is slow)
         diff = self.observations - np.array(observation)
@@ -90,19 +102,28 @@ class Q_learning(Agent):
         else:
             return np.random.randint(0, len(self.actions))
 
+    def get_parameters(self):
+        return {**Agent.get_parameters(self),
+                "learning_rate": self.learning_rate}
+
+    def verbose_episode(self):
+        return f"epsilon={self.epsilon}"
+
 
 class DeepQ_learning(Agent):
-    def __init__(self, mlp_args, n_actions=20, 
+    def __init__(self, mlp_args, epsilon, discount_factor, batch_size=1500, n_actions=20,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
-        Agent.__init__(self)
+        Agent.__init__(self, epsilon, discount_factor)
+        self.name = "DeepQ_learning"
 
         self.observation_range = observation_range
         self.action_range = action_range
         self.mlp = MLPRegressor(**mlp_args)
 
         self.x, self.y = [], []
-        self.batch_size = 1500
+        self.batch_size = batch_size
+        self.mlp_args = mlp_args
 
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
@@ -144,21 +165,31 @@ class DeepQ_learning(Agent):
         self.mlp.fit(self.scaler.transform(np.array(self.x)), np.array(self.y))
         self.x, self.y = [], []
 
+    def get_parameters(self):
+        return {**Agent.get_parameters(self),
+                "mlp_args": mlp_args,
+                "batch_size": self.batch_size}
+
+    def verbose_episode(self):
+        return f"epsilon={self.epsilon}"
+
 
 def learning(agent, n_episodes, verbose=1000):
     env.reset()
-    print(f"Limits of observation space (position, speed)                   : " +
+    print("ENVIRONMENT : ")
+    print(f"   Limits of observation space (position, speed)                   : " +
                 f"low={env.observation_space.low}, high={env.observation_space.high}")
-    print(f"Limits of action space (~acceleration)                          : " +
+    print(f"   Limits of action space (~acceleration)                          : " +
                 f"low={env.action_space.low}, high={env.action_space.high}")
-    print(f"Reward range (reward is inversely proportional to spent energy) : " +
+    print(f"   Reward range (reward is inversely proportional to spent energy) : " +
                 f"{env.reward_range}")
 
     agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
+    print(f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
 
     for i_episode in range(n_episodes):
         if i_episode % verbose == 0:
-            print(f"EPISODE {i_episode + 1}/{n_episodes}")
+            print(f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
         observation = env.reset()
         done = False
         t = 0
@@ -189,7 +220,7 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range=(env.action_space.low, env.action_space.high)
 
-    q_agent = Q_learning(n_observations=30, n_actions=10,
+    q_agent = Q_learning(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
                          observation_range=observation_range,
                          action_range=action_range)
 
@@ -203,7 +234,7 @@ if __name__ == '__main__':
                 'verbose': False,
                 'warm_start': True}
 
-    deep_agent = DeepQ_learning(mlp_args, n_actions=10,
+    deep_agent = DeepQ_learning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
                                 observation_range=observation_range,
                                 action_range=action_range)
 
