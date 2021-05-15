@@ -67,7 +67,7 @@ class Agent:
         file.close()
 
 
-class Q_learning(Agent):
+class QLearning(Agent):
     def __init__(self, epsilon, discount_factor, learning_rate=3e-2, n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
@@ -121,18 +121,18 @@ class Q_learning(Agent):
         return f"epsilon={self.epsilon:.4f}"
 
 
-class SARSA(Q_learning):
+class SARSA(QLearning):
     def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
-        Q_learning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
         self.cached_action = None
         self.cached_obs = None
 
     def get_best_action(self, observation, cached=True):
         if not cached or self.cached_action is None:
             self.cached_obs = observation
-            self.cached_action = Q_learning.get_best_action(self, observation)
+            self.cached_action = QLearning.get_best_action(self, observation)
             return self.cached_action
         else:
             if not np.all(self.cached_obs == observation):
@@ -154,7 +154,7 @@ class SARSA(Q_learning):
         self.cached_obs = None
 
 
-class DeepQ_learning(Agent):
+class DeepQLearning(Agent):
     def __init__(self, mlp_args, epsilon, discount_factor, batch_size=1500, n_actions=20,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
@@ -218,11 +218,11 @@ class DeepQ_learning(Agent):
         return f"epsilon={self.epsilon:.4f}"
 
 
-class Backwards_SARSA(SARSA):
+class BackwardsSARSA(QLearning):
     def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.9,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1)):
-        SARSA.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
 
         self.backwards_learning_rate = backwards_learning_rate 
         self.backwards_discount_factor = backwards_discount_factor
@@ -261,7 +261,7 @@ class Backwards_SARSA(SARSA):
         self.M.append([])
 
     def get_parameters(self):
-        return {**SARSA.get_parameters(self),
+        return {**QLearning.get_parameters(self),
                   "backwards_learning_rate": self.backwards_learning_rate,
                   "backwards_discount_factor": self.backwards_discount_factor}
 
@@ -317,7 +317,7 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range = (env.action_space.low, env.action_space.high)
 
-    q_agent = Q_learning(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+    q_agent = QLearning(epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
                          observation_range=observation_range,
                          action_range=action_range)
 
@@ -325,7 +325,7 @@ if __name__ == '__main__':
                          observation_range=observation_range,
                          action_range=action_range)
 
-    backwards_sarsa_agent = Backwards_SARSA(epsilon=0.5, discount_factor=0.9999, learning_rate=0.015, n_observations=30, n_actions=10, backwards_learning_rate=0.01, backwards_discount_factor=0.9999,
+    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.9999, learning_rate=0.015, n_observations=30, n_actions=10, backwards_learning_rate=0.01, backwards_discount_factor=0.9999,
                          observation_range=observation_range,
                          action_range=action_range)
 
@@ -339,7 +339,7 @@ if __name__ == '__main__':
                 'verbose': False,
                 'warm_start': True}
 
-    deep_agent = DeepQ_learning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
+    deep_agent = DeepQLearning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
                                 observation_range=observation_range,
                                 action_range=action_range)
 
