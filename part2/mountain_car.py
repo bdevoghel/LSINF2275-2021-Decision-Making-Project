@@ -302,7 +302,6 @@ class BackwardQLearning(Agent):
     def action_idx2value(self, action):
         return self.agent.action_idx2value(action)
 
-
     def get_best_action(self, observation):
         return self.agent.get_best_action(observation)
 
@@ -394,7 +393,7 @@ if __name__ == '__main__':
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
-    backwards_sarsa_agent = BackwardQLearning(sarsa_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
+    backwards_sarsa_agent = BackwardQLearning(sarsa_agent, backwards_learning_rate=0.05, backwards_discount_factor=0.99)
 
 
 
