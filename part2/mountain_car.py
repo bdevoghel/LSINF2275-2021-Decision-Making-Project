@@ -381,7 +381,7 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range = (env.action_space.low, env.action_space.high)
 
-    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, 
+    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.05, 
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
                         action_range=action_range,
@@ -405,7 +405,7 @@ if __name__ == '__main__':
 
     file = open("results.txt", "w")  # where to save logs of agent learning
 
-    agent = backwards_sarsa_agent
+    agent = q_agent
     learning(agent, verbose=1000, n_episodes=10000, save_gif=False, file=file)
     agent.save()
     file.close()
