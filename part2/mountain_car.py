@@ -387,20 +387,16 @@ if __name__ == '__main__':
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
+    backwards_q_agent = BackwardQLearning(q_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
 
-    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.03,
+    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07,
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
+    backwards_sarsa_agent = BackwardQLearning(sarsa_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
 
 
-    backward_inner_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, 
-                        n_observations=30, n_actions=10,
-                        observation_range=observation_range,
-                        action_range=action_range,
-                        action_strategy='simulated annealing', init_strategy='random')
-    backwards_agent = BackwardQLearning(backward_inner_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
 
     nstep_sarsa_agent = NStepSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02, lookahead=10,
                                    n_observations=30, n_actions=10,
@@ -410,7 +406,7 @@ if __name__ == '__main__':
 
     file = open("results.txt", "w")  # where to save logs of agent learning
 
-    agent = backwards_agent
+    agent = backwards_sarsa_agent
     learning(agent, verbose=1000, n_episodes=10000, save_gif=False, file=file)
     agent.save()
     file.close()
