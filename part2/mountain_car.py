@@ -1,4 +1,5 @@
 import itertools
+import re
 import numpy as np
 import pickle
 
@@ -87,8 +88,7 @@ class Agent:
                 "epsilon_decay_end": self.epsilon_decay_end}
 
     def verbose_episode(self):
-        """callback function"""
-        raise NotImplementedError("verbose_episode not implemented (best practice : put changing parameters")
+        return f"epsilon={self.epsilon:.4f}"
 
     def save(self):
         file = open(f'pickle/{self.__class__.__name__}.p', 'wb')
@@ -170,9 +170,6 @@ class QLearning(Agent):
                 "learning_rate": self.learning_rate,
                 "action_strategy": "boltzmann" if self.use_boltzmann else "simulated annealing",
                 "init_strategy":self.init_strategy}
-
-    def verbose_episode(self):
-        return f"epsilon={self.epsilon:.4f}"
 
 
 class SARSA(QLearning):
@@ -268,50 +265,60 @@ class NStepSARSA(QLearning):
                 "lookahead": self.lookahead}
 
 
-class BackwardsSARSA(QLearning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03,  backwards_learning_rate=0.1, backwards_discount_factor=0.9,
-                 n_observations=30, n_actions=10,
-                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), 
-                 action_strategy='simulated annealing', init_strategy='random'):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
-
+class BackwardQLearning(Agent):
+    def __init__(self, agent:Agent, backwards_learning_rate=0.1, backwards_discount_factor=0.9):
+        """
+        Extension on an agent by adding the backwards Q-Learning algorithm to it
+        """
+        self.name = f"{self.__class__.__name__}({agent.name})"
+        self.agent = agent
         self.backwards_learning_rate = backwards_learning_rate
         self.backwards_discount_factor = backwards_discount_factor
         self.M = []
 
     def update(self, prev_observation, action, new_observation, reward, done, info):
-        prev_obs_idx = self.observation2idx(prev_observation)
-        new_obs_idx = self.observation2idx(new_observation)
-
         # store values for i
+        prev_obs_idx = self.agent.observation2idx(prev_observation)
+        new_obs_idx = self.agent.observation2idx(new_observation)
         self.M.append((prev_obs_idx, action, reward, new_obs_idx))
 
         # non-terminal state (eq 9)
-        future_reward = np.max(self.Q[new_obs_idx])
-        self.Q[prev_obs_idx, action] += \
-            self.learning_rate * (reward
-                                  + self.discount_factor * future_reward
-                                  - self.Q[prev_obs_idx, action])
+        self.agent.update(prev_observation, action, new_observation, reward, done, info)
 
         if done and 'TimeLimit.truncated' not in info:
-            # terminal state (eq 11)
+            # terminal state
             for j in range(len(self.M)-1, -1, -1):
                 prev_obs_idx, action, reward, new_obs_idx = self.M[j]
-                future_reward = np.max(self.Q[new_obs_idx, :])
-                self.Q[prev_obs_idx, action] += \
+                future_reward = np.max(self.agent.Q[new_obs_idx, :])
+                self.agent.Q[prev_obs_idx, action] += \
                     self.backwards_learning_rate * (reward
                                                     + self.backwards_discount_factor * future_reward
-                                                    - self.Q[prev_obs_idx, action])
+                                                    - self.agent.Q[prev_obs_idx, action])
 
     def new_episode(self):
-        QLearning.new_episode(self)
+        self.agent.new_episode()
         self.M = []
 
+    def action_idx2value(self, action):
+        return self.agent.action_idx2value(action)
+
+
+    def get_best_action(self, observation):
+        return self.agent.get_best_action(observation)
+
     def get_parameters(self):
-        return {**QLearning.get_parameters(self),
+        return {**self.agent.get_parameters(),
                   "backwards_learning_rate": self.backwards_learning_rate,
                   "backwards_discount_factor": self.backwards_discount_factor}
+
+    def verbose_episode(self):
+        return self.agent.verbose_episode()
+
+    def decay(self):
+        self.agent.decay()
+
+    def set_decay_values(self, epsilon_decay_start, epsilon_decay_end):
+        self.agent.set_decay_values(epsilon_decay_start, epsilon_decay_end)
 
 
 def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False, file:TextIOWrapper=None):
@@ -387,11 +394,13 @@ if __name__ == '__main__':
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
 
-    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, backwards_learning_rate=0.1, backwards_discount_factor=0.99,
-                                           n_observations=30, n_actions=10,
-                                           observation_range=observation_range,
-                                           action_range=action_range,
-                                           action_strategy='simulated annealing', init_strategy='random')
+
+    backward_inner_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, 
+                        n_observations=30, n_actions=10,
+                        observation_range=observation_range,
+                        action_range=action_range,
+                        action_strategy='simulated annealing', init_strategy='random')
+    backwards_agent = BackwardQLearning(backward_inner_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
 
     nstep_sarsa_agent = NStepSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02, lookahead=10,
                                    n_observations=30, n_actions=10,
@@ -401,7 +410,7 @@ if __name__ == '__main__':
 
     file = open("results.txt", "w")  # where to save logs of agent learning
 
-    agent = backwards_sarsa_agent
+    agent = backwards_agent
     learning(agent, verbose=1000, n_episodes=10000, save_gif=False, file=file)
     agent.save()
     file.close()
