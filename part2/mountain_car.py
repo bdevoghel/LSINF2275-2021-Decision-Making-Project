@@ -17,7 +17,7 @@ env = gym.make('MountainCarContinuous-v0')
 """
 From https://gym.openai.com/envs/MountainCarContinuous-v0/ : A car is on a one-dimensional track, positioned 
 between two "mountains". The goal is to drive up the mountain on the right; however, the car's engine is not strong 
-enough to scale the mountain in a single pass. Therefore, the only way to succeed is to drive back and forth to build 
+enough to climb the mountain in a single pass. Therefore, the only way to succeed is to drive back and forth to build 
 up momentum. Here, the reward is greater if you spend less energy to reach the goal 
 """
 
@@ -386,7 +386,7 @@ if __name__ == '__main__':
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
-    backwards_q_agent = BackwardQLearning(q_agent, backwards_learning_rate=0.1, backwards_discount_factor=0.99)
+    backwards_q_agent = BackwardQLearning(q_agent, backwards_learning_rate=0.07, backwards_discount_factor=0.99)
 
     sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07,
                         n_observations=30, n_actions=10,
@@ -405,7 +405,7 @@ if __name__ == '__main__':
 
     file = open("results.txt", "w")  # where to save logs of agent learning
 
-    agent = q_agent
+    agent = backwards_q_agent
     learning(agent, verbose=1000, n_episodes=10000, save_gif=False, file=file)
     agent.save()
     file.close()

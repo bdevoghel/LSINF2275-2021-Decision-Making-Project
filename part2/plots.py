@@ -41,6 +41,10 @@ def load_data(filename="logs/tmp_logs.txt", nb_episodes=10000, do_record=False):
 def plot_data(episodes, rewards, rewards_with_failed: list, filename_model_def, every_episode_step=100, scatter_data=True, names=None):
     assert scatter_data == (names is None), f"{scatter_data} == {names}"
 
+    # plt.figure(figsize=(8, 4))
+    plt.figure(figsize=(6, 4))
+
+
     every_episodes = []
     mean_rewards = []
     min_rewards = []
@@ -65,37 +69,53 @@ def plot_data(episodes, rewards, rewards_with_failed: list, filename_model_def, 
         plt.scatter(episodes, rewards, s=5, label=f"reward of episode that succeeded")
         labels = [f"average of last {every_episode_step} episodes' rewards"]
     else:
-        labels = [f"{name} average of last {every_episode_step} episodes" for name in names]
-    colors = ['r', 'b', 'g', 'c', 'm', 'y']
+        labels = [f"{name} average" for name in names]
+    colors = ['r', 'b', 'g', 'darkorange', 'm', 'y']
 
     for i in range(len(labels)):
-        plt.plot(every_episodes, mean_rewards[i], f'-{colors[i]}', label=labels[i])
+        plt.plot(every_episodes, mean_rewards[i], color=colors[i], label=labels[i])
         # plt.plot(every_episodes, min_rewards[i], ':k', alpha=0.7)
         # plt.plot(every_episodes, max_rewards[i], ':k', alpha=0.7)
 
-    print(f"File : {filename_model_def}")
-    print(f"Mean reward on the last 100 steps : {mean_rewards[0][-1]}")
+    print(f"\nAgent : {filename_model_def}")
+    print(f"      Mean reward on the last 100 steps : {mean_rewards[-1][-1]}\n")
     
     plt.ylim((-10, 102))
     plt.xlabel("episode")
     plt.ylabel("reward")
     if names is None:
-        plt.legend(loc="best")
+        plt.legend(loc="lower right")
     else:
-        plt.legend(loc="upper center", bbox_to_anchor=(0.5, 1), bbox_transform=plt.gcf().transFigure)
+        plt.legend(loc="lower right") #, bbox_to_anchor=(0.68, 0.4), bbox_transform=plt.gcf().transFigure)
     plt.savefig(f"logs/{filename_model_def[:120] if names is None else 'cmp_plot'}.png", bbox_inches="tight")
     plt.show()
-    
+
 
 compare = False
 if compare:
-    filenames = ["logs/BackwardsSARSA.txt", "logs/SARSA.txt", "logs/QLearning.txt"]
-    names = ["Backwards SARSA's", "SARSA's", "Q-learning's"]
+    filenames = ["logs/results_taeq_learning.txt", 
+                 "logs/results_sarsa_classic.txt", 
+                 "logs/results_backward_taeq.txt", 
+                 "logs/results_backward_sarsa.txt"]
+    names =     ["TAE-Q-Learning's", 
+                 "SARSA's", 
+                 "Backward TAE-Q-Learning's",
+                 "Backward SARSA's"]
 
-    episodes, rewards, rewards_with_failed_backwards, filename_model_def_backwards = load_data(filename=filenames[0])
-    _, _, rewards_with_failed_sarsa, filename_model_def_sarsa = load_data(filename=filenames[1])
-    _, _, rewards_with_failed_q, filename_model_def_q = load_data(filename=filenames[2])
-    plot_data(episodes, None, [rewards_with_failed_backwards, rewards_with_failed_sarsa, rewards_with_failed_q], [filename_model_def_backwards, filename_model_def_sarsa, filename_model_def_q], scatter_data=False, names=names)
+    episodes = -1
+    rewards = -1
+    rewards_with_failed = []
+    filename_model_def = []
+    for i, filename in enumerate(filenames):
+        episodes, rewards, rwf, fname = load_data(filename)
+        rewards_with_failed.append(rwf)
+        filename_model_def.append(fname)
+
+    plot_data(episodes, None, rewards_with_failed, filename_model_def, scatter_data=False, names=names)
 else:
-    episodes, rewards, rewards_with_failed, filename_model_def = load_data("logs/SARSA.txt")
-    plot_data(episodes, rewards, [rewards_with_failed], filename_model_def)
+    for filename in ["logs/results_taeq_learning.txt", 
+                     "logs/results_sarsa_classic.txt", 
+                     "logs/results_backward_taeq.txt", 
+                     "logs/results_backward_sarsa.txt"] :
+        episodes, rewards, rewards_with_failed, filename_model_def = load_data(filename)
+        plot_data(episodes, rewards, [rewards_with_failed], filename_model_def)
