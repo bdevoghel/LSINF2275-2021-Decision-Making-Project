@@ -73,6 +73,9 @@ def plot_data(episodes, rewards, rewards_with_failed: list, filename_model_def, 
         # plt.plot(every_episodes, min_rewards[i], ':k', alpha=0.7)
         # plt.plot(every_episodes, max_rewards[i], ':k', alpha=0.7)
 
+    print(f"File : {filename_model_def}")
+    print(f"Mean reward on the last 100 steps : {mean_rewards[0][-1]}")
+    
     plt.ylim((-10, 102))
     plt.xlabel("episode")
     plt.ylabel("reward")
@@ -81,10 +84,10 @@ def plot_data(episodes, rewards, rewards_with_failed: list, filename_model_def, 
     else:
         plt.legend(loc="upper center", bbox_to_anchor=(0.5, 1), bbox_transform=plt.gcf().transFigure)
     plt.savefig(f"logs/{filename_model_def[:120] if names is None else 'cmp_plot'}.png", bbox_inches="tight")
-    plt.show(bbox_inches="tight")
+    plt.show()
+    
 
-
-compare = True
+compare = False
 if compare:
     filenames = ["logs/BackwardsSARSA.txt", "logs/SARSA.txt", "logs/QLearning.txt"]
     names = ["Backwards SARSA's", "SARSA's", "Q-learning's"]
