@@ -1,5 +1,7 @@
 import itertools
 import numpy as np
+from matplotlib import pyplot as plt
+from matplotlib import animation
 
 import gym  # doc available here : https://gym.openai.com/docs/
 
@@ -16,6 +18,19 @@ between two "mountains". The goal is to drive up the mountain on the right; howe
 enough to scale the mountain in a single pass. Therefore, the only way to succeed is to drive back and forth to build 
 up momentum. Here, the reward is greater if you spend less energy to reach the goal 
 """
+
+
+def save_frames_as_gif(frames, path):
+    plt.figure(figsize=(frames[0].shape[1] / 72.0, frames[0].shape[0] / 72.0), dpi=72)
+
+    patch = plt.imshow(frames[0])
+    plt.axis('off')
+
+    def animate(i):
+        patch.set_data(frames[i])
+
+    anim = animation.FuncAnimation(plt.gcf(), animate, frames=len(frames), interval=1)
+    anim.save(path, writer='', fps=20)
 
 
 class Agent:
@@ -345,7 +360,7 @@ class BackwardsSARSA(QLearning):
                   "backwards_discount_factor": self.backwards_discount_factor}
 
 
-def learning(agent:Agent, n_episodes:int, verbose=1000):
+def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False):
     env.reset()
     print("ENVIRONMENT : ")
     print(f"   Limits of observation space (position, speed)                   : " +
@@ -366,10 +381,13 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
         agent.new_episode()
         done = False
         episode_rewards = []
+        frames = []
         agent.step = 0
         while not done:
-            if i_episode % verbose == 0 and i_episode != 0 or i_episode == n_episodes-1:
+            if i_episode % verbose == 0 or i_episode == n_episodes-1:
                 env.render()
+                if save_gif:
+                    frames.append(env.render(mode="rgb_array"))
 
             # choose action
             action = agent.get_best_action(observation)
@@ -389,6 +407,9 @@ def learning(agent:Agent, n_episodes:int, verbose=1000):
                 break
             agent.step += 1
         agent.decay()
+        if save_gif and len(frames) > 0:
+            save_frames_as_gif(frames, path=f"renders/{agent.name}_{i_episode}.gif")
+            print("gif saved")
     env.close()
 
 
@@ -402,14 +423,15 @@ if __name__ == '__main__':
                          action_range=action_range,
                          action_strategy='simulated annealing')
 
-    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02,
+    sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.03,
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
                         action_range=action_range)
 
-    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30, n_actions=10, backwards_learning_rate=0.2, backwards_discount_factor=0.99,
-                         observation_range=observation_range,
-                         action_range=action_range)
+    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30,
+                                           n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.99,
+                                           observation_range=observation_range,
+                                           action_range=action_range)
 
     nstep_sarsa_agent = NStepSARSA(lookahead=10, epsilon=0.5, discount_factor=0.99, learning_rate=0.02,
                                    n_observations=30, n_actions=10,
@@ -431,5 +453,5 @@ if __name__ == '__main__':
                                 action_range=action_range)
 
     agent = backwards_sarsa_agent
-    learning(agent, verbose=1000, n_episodes=10000)
+    learning(agent, verbose=1000, n_episodes=10000, save_gif=False)
     agent.save()
