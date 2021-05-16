@@ -40,6 +40,9 @@ def save_frames_as_gif(frames, path):
 
 
 class Agent:
+    """
+    Abstract class to impose a struture for the agents
+    """
     def __init__(self, epsilon=0.5, discount_factor=0.95):
         self.name = "AbstractAgent"
 
@@ -96,7 +99,11 @@ class Agent:
         file.close()
 
 
-class QLearning(Agent):
+class TAEpsilonQLearning(Agent):
+    """
+    Class for the Time Adaptive Epsilon Q-Learning algorithm
+    """
+
     def __init__(self, epsilon, discount_factor, learning_rate=3e-2, 
                  n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
@@ -172,20 +179,23 @@ class QLearning(Agent):
                 "init_strategy":self.init_strategy}
 
 
-class SARSA(QLearning):
+class SARSA(TAEpsilonQLearning):
+    """
+    Class for the SARSA algorithm
+    """
     def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, 
                  n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
                  action_range=(-1, 1), 
                  action_strategy='simulated annealing', init_strategy='random'):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
+        TAEpsilonQLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
         self.cached_action = None
         self.cached_obs = None
 
     def get_best_action(self, observation, cached=True):
         if not cached or self.cached_action is None:
             self.cached_obs = observation
-            self.cached_action = QLearning.get_best_action(self, observation)
+            self.cached_action = TAEpsilonQLearning.get_best_action(self, observation)
             return self.cached_action
         else:
             if not np.all(self.cached_obs == observation):
@@ -207,65 +217,10 @@ class SARSA(QLearning):
         self.cached_obs = None
 
 
-class NStepSARSA(QLearning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, lookahead=5,
-                 n_observations=30, n_actions=10, 
-                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), 
-                 action_strategy='simulated annealing', init_strategy='random'):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
-        self.cached_actions = [-1]
-        self.cached_states = []
-        self.cached_rewards = [0.]
-        self.M = np.inf
-        self.lookahead = lookahead
-
-    def get_best_action(self, observation):
-        action = QLearning.get_best_action(self, observation)
-        self.cached_actions.append(action)
-        return action
-
-    def update(self, prev_observation, action, new_observation, reward, done, info):
-        # inspired from  https://medium.com/zero-equals-false/n-step-td-method-157d3875b9cb
-        if self.step == 0:
-            self.cached_states.append(prev_observation)
-
-        # goal reached, finishing to update Q
-        self.step = self.step if done is not None else self.step + 1
-
-        if self.step < self.M:
-            # self.cached_actions.append(action)
-            self.cached_rewards.append(reward)
-            self.cached_states.append(new_observation)
-
-            if done:
-                self.M = self.step + 1
-
-        tau = self.step - self.lookahead + 1
-
-        if tau >= 0:
-            G = 0.  # expected reward
-            for i in range(tau+1, min(tau+self.lookahead, self.M) + 1):
-                G += self.discount_factor ** (i - tau - 1) * self.cached_rewards[i]
-            if tau + self.lookahead < self.M:
-                G += self.discount_factor ** self.lookahead * self.Q[self.observation2idx(self.cached_states[tau+self.lookahead]), self.cached_actions[tau+self.lookahead]]
-            self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]] += self.learning_rate * (G - self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]])
-
-        if self.step + 1 >= self.M and tau < self.M - 1:
-            self.update(None, None, None, None, None, None)  # reached end of episode but needs to update Q
-
-    def new_episode(self):
-        self.cached_actions = [-1]
-        self.cached_states = []
-        self.cached_rewards = [0.]
-        self.M = np.inf
-
-    def get_parameters(self):
-        return {**QLearning.get_parameters(self),
-                "lookahead": self.lookahead}
-
-
-class BackwardQLearning(Agent):
+class BackwardLearning(Agent):
+    """
+    Wrapper for Backward Learning
+    """
     def __init__(self, agent:Agent, backwards_learning_rate=0.1, backwards_discount_factor=0.9):
         """
         Extension on an agent by adding the backwards Q-Learning algorithm to it
@@ -381,27 +336,19 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range = (env.action_space.low, env.action_space.high)
 
-    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.05, 
+    q_agent = TAEpsilonQLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.05, 
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
-    backwards_q_agent = BackwardQLearning(q_agent, backwards_learning_rate=0.07, backwards_discount_factor=0.99)
+    backwards_q_agent = BackwardLearning(q_agent, backwards_learning_rate=0.07, backwards_discount_factor=0.99)
 
     sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07,
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
                         action_range=action_range,
                         action_strategy='simulated annealing', init_strategy='random')
-    backwards_sarsa_agent = BackwardQLearning(sarsa_agent, backwards_learning_rate=0.05, backwards_discount_factor=0.99)
-
-
-
-    nstep_sarsa_agent = NStepSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02, lookahead=10,
-                                   n_observations=30, n_actions=10,
-                                   observation_range=observation_range,
-                                   action_range=action_range,
-                                   action_strategy='simulated annealing', init_strategy='random')
+    backwards_sarsa_agent = BackwardLearning(sarsa_agent, backwards_learning_rate=0.05, backwards_discount_factor=0.99)
 
     file = open("results.txt", "w")  # where to save logs of agent learning
 
