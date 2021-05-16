@@ -1,14 +1,15 @@
 import itertools
 import numpy as np
+import pickle
+
+from os import write
+from io import TextIOWrapper
+
 from matplotlib import pyplot as plt
 from matplotlib import animation
 
 import gym  # doc available here : https://gym.openai.com/docs/
 
-from sklearn.neural_network import MLPRegressor
-from sklearn.preprocessing import StandardScaler
-
-import pickle
 
 
 env = gym.make('MountainCarContinuous-v0')
@@ -18,6 +19,10 @@ between two "mountains". The goal is to drive up the mountain on the right; howe
 enough to scale the mountain in a single pass. Therefore, the only way to succeed is to drive back and forth to build 
 up momentum. Here, the reward is greater if you spend less energy to reach the goal 
 """
+
+def print_and_write(f: TextIOWrapper=None, s: str=""):
+    print(s)
+    f.write(s + "\n")
 
 
 def save_frames_as_gif(frames, path):
@@ -47,13 +52,14 @@ class Agent:
         self.epsilon_decay_start = None
         self.epsilon_decay_end = None
 
+        # temperature for boltzmann strategy
         self.t = 1
         self.T = 1e5
         self.start_T = self.T
         self.step = 0
 
-    def action2value(self, action):
-        raise NotImplementedError("action2value not implemented")
+    def action_idx2value(self, action):
+        raise NotImplementedError("action_idx2value not implemented")
 
     def update(self, prev_observation, action, new_observation, reward, done, info):
         raise NotImplementedError("update not implemented")
@@ -81,6 +87,7 @@ class Agent:
                 "epsilon_decay_end": self.epsilon_decay_end}
 
     def verbose_episode(self):
+        """callback function"""
         raise NotImplementedError("verbose_episode not implemented (best practice : put changing parameters")
 
     def save(self):
@@ -90,17 +97,25 @@ class Agent:
 
 
 class QLearning(Agent):
-    def __init__(self, epsilon, discount_factor, learning_rate=3e-2, n_observations=30, n_actions=10,
+    def __init__(self, epsilon, discount_factor, learning_rate=3e-2, 
+                 n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), action_strategy='simulated annealing', init_strategy='random'):
+                 action_range=(-1, 1), 
+                 action_strategy='simulated annealing', init_strategy='random'):
         Agent.__init__(self, epsilon, discount_factor)
         self.name = self.__class__.__name__
 
+        self.learning_rate = learning_rate
+        self.use_boltzmann = action_strategy == 'boltzmann'
+
+
         self.observation2idx_cache = {}
 
+        # init Q matrix
         self.init_strategy = init_strategy
         self.Q = np.random.rand(n_observations**2, n_actions) if init_strategy == 'random' else np.full((n_observations**2, n_actions), -np.inf)
 
+        # init quantization vectors
         pos_step = (observation_range['position'][1] - observation_range['position'][0]) / n_observations
         positions = np.arange(*map(lambda x: x + pos_step, observation_range['position']), pos_step)
 
@@ -112,11 +127,7 @@ class QLearning(Agent):
         action_step = (action_range[1] - action_range[0]) / n_actions
         self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
 
-        self.learning_rate = learning_rate
-
-        self.use_boltzmann = action_strategy == 'boltzmann'
-
-    def observation2idx(self, observation):  # TODO to optimize (is slow)
+    def observation2idx(self, observation):
         obs_bytes = observation.tobytes()
         if obs_bytes in self.observation2idx_cache:
             return self.observation2idx_cache[obs_bytes]
@@ -129,7 +140,7 @@ class QLearning(Agent):
         self.observation2idx_cache[obs_bytes] = result
         return result
 
-    def action2value(self, action):
+    def action_idx2value(self, action):
         return [self.actions[action]]
 
     def update(self, prev_observation, action, new_observation, reward, done, info):
@@ -165,10 +176,12 @@ class QLearning(Agent):
 
 
 class SARSA(QLearning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10,
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, 
+                 n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1)):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+                 action_range=(-1, 1), 
+                 action_strategy='simulated annealing', init_strategy='random'):
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
         self.cached_action = None
         self.cached_obs = None
 
@@ -198,9 +211,12 @@ class SARSA(QLearning):
 
 
 class NStepSARSA(QLearning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1), action_strategy='simulated annealing', lookahead=5):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy)
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, lookahead=5,
+                 n_observations=30, n_actions=10, 
+                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
+                 action_range=(-1, 1), 
+                 action_strategy='simulated annealing', init_strategy='random'):
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
         self.cached_actions = [-1]
         self.cached_states = []
         self.cached_rewards = [0.]
@@ -213,7 +229,7 @@ class NStepSARSA(QLearning):
         return action
 
     def update(self, prev_observation, action, new_observation, reward, done, info):
-        # https://medium.com/zero-equals-false/n-step-td-method-157d3875b9cb
+        # inspired from  https://medium.com/zero-equals-false/n-step-td-method-157d3875b9cb
         if self.step == 0:
             self.cached_states.append(prev_observation)
 
@@ -239,7 +255,7 @@ class NStepSARSA(QLearning):
             self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]] += self.learning_rate * (G - self.Q[self.observation2idx(self.cached_states[tau]), self.cached_actions[tau]])
 
         if self.step + 1 >= self.M and tau < self.M - 1:
-            self.update(None, None, None, None, None)  # reached end of episode but needs to update Q
+            self.update(None, None, None, None, None, None)  # reached end of episode but needs to update Q
 
     def new_episode(self):
         self.cached_actions = [-1]
@@ -252,75 +268,13 @@ class NStepSARSA(QLearning):
                 "lookahead": self.lookahead}
 
 
-class DeepQLearning(Agent):
-    def __init__(self, mlp_args, epsilon, discount_factor, batch_size=1500, n_actions=20,
-                 observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1)):
-        Agent.__init__(self, epsilon, discount_factor)
-        self.name = self.__class__.__name__
-
-        self.observation_range = observation_range
-        self.action_range = action_range
-        self.mlp = MLPRegressor(**mlp_args)
-
-        self.x, self.y = [], []
-        self.batch_size = batch_size
-        self.mlp_args = mlp_args
-
-        action_step = (action_range[1] - action_range[0]) / n_actions
-        self.actions = np.arange(*map(lambda x: x + action_step / 2, action_range), action_step)
-
-        self.first_fit()
-
-        self.scaler = None
-
-    def first_fit(self):
-        x = np.array([[np.mean(self.observation_range['position']), np.mean(self.observation_range['speed'])]])
-        y = np.random.uniform(*self.action_range, size=(1, len(self.actions)))
-        self.mlp.fit(x, y)
-
-    def get_best_action(self, observation):
-        if np.random.rand() > self.epsilon:
-            return np.argmax(self.mlp.predict(observation[None, :])[0, :])
-        else:
-            return np.random.randint(0, len(self.actions))
-
-    def action2value(self, action):
-        return [self.actions[action]]
-
-    def update(self, prev_observation, action, new_observation, reward, done, info):
-        old_Q = self.mlp.predict(prev_observation[None, :])[0, :]
-        new_Q = self.mlp.predict(new_observation[None, :])[0, :]
-
-        old_Q[action] = reward + self.discount_factor * np.max(new_Q)
-
-        self.x.append(prev_observation)
-        self.y.append(old_Q)
-
-        if len(self.x) == self.batch_size:
-            self.learn()
-
-    def learn(self):
-        if self.scaler is None:
-            self.scaler = StandardScaler()
-            self.scaler.fit(np.array(self.x))
-        self.mlp.fit(self.scaler.transform(np.array(self.x)), np.array(self.y))
-        self.x, self.y = [], []
-
-    def get_parameters(self):
-        return {**Agent.get_parameters(self),
-                "mlp_args": mlp_args,
-                "batch_size": self.batch_size}
-
-    def verbose_episode(self):
-        return f"epsilon={self.epsilon:.4f}"
-
-
 class BackwardsSARSA(QLearning):
-    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03, n_observations=30, n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.9,
+    def __init__(self, epsilon=0.5, discount_factor=0.95, learning_rate=0.03,  backwards_learning_rate=0.1, backwards_discount_factor=0.9,
+                 n_observations=30, n_actions=10,
                  observation_range={'speed': (-1, 1), 'position': (-1, 1)},
-                 action_range=(-1, 1)):
-        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range)
+                 action_range=(-1, 1), 
+                 action_strategy='simulated annealing', init_strategy='random'):
+        QLearning.__init__(self, epsilon, discount_factor, learning_rate, n_observations, n_actions, observation_range, action_range, action_strategy, init_strategy)
 
         self.backwards_learning_rate = backwards_learning_rate
         self.backwards_discount_factor = backwards_discount_factor
@@ -360,31 +314,33 @@ class BackwardsSARSA(QLearning):
                   "backwards_discount_factor": self.backwards_discount_factor}
 
 
-def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False):
+def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False, file:TextIOWrapper=None):
     env.reset()
-    print("ENVIRONMENT : ")
-    print(f"   Limits of observation space (position, speed)                   : " +
-                f"low={env.observation_space.low}, high={env.observation_space.high}")
-    print(f"   Limits of action space (~acceleration)                          : " +
-                f"low={env.action_space.low}, high={env.action_space.high}")
-    print(f"   Reward range (reward is inversely proportional to spent energy) : " +
-                f"{env.reward_range}")
+    print_and_write(file, "ENVIRONMENT : ")
+    print_and_write(file, f"   Limits of observation space (position, speed)                   : " +
+                          f"low={env.observation_space.low}, high={env.observation_space.high}")
+    print_and_write(file, f"   Limits of action space (~acceleration)                          : " +
+                          f"low={env.action_space.low}, high={env.action_space.high}")
+    print_and_write(file, f"   Reward range (reward is inversely proportional to spent energy) : " +
+                          f"{env.reward_range}")
 
     agent.set_decay_values(epsilon_decay_start=0, epsilon_decay_end=n_episodes)
-    print(f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
+    print_and_write(file, f"AGENT : \n   {agent.name} : {agent.get_parameters()}")
 
-    # repeat for each episode
+    # iterate over every episode
     for i_episode in range(n_episodes):
-        if i_episode % verbose == 0:
-            print(f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
+        if verbose and i_episode % verbose == 0:
+            print_and_write(file, f"EPISODE {i_episode + 1}/{n_episodes} - {agent.verbose_episode()}")
+        
         observation = env.reset()
         agent.new_episode()
         done = False
         episode_rewards = []
         frames = []
+
         agent.step = 0
         while not done:
-            if i_episode % verbose == 0 or i_episode == n_episodes-1:
+            if verbose and (i_episode % verbose == 0 or i_episode == n_episodes-1):
                 env.render()
                 if save_gif:
                     frames.append(env.render(mode="rgb_array"))
@@ -394,7 +350,7 @@ def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False):
             prev_observation = observation
 
             # execute action
-            observation, reward, done, info = env.step(agent.action2value(action))
+            observation, reward, done, info = env.step(agent.action_idx2value(action))
             observation = np.round(observation, 5)
             episode_rewards.append(reward)
 
@@ -403,9 +359,10 @@ def learning(agent:Agent, n_episodes:int, verbose=1000, save_gif=False):
 
             if done:
                 if 'TimeLimit.truncated' not in info:
-                    print(f"   - episode {i_episode + 1} finished after {agent.step} timesteps with sum(episode_rewards)={np.sum(episode_rewards)}")
+                    print_and_write(file, f"   - episode {i_episode + 1} finished after {agent.step} timesteps with sum(episode_rewards)={np.sum(episode_rewards)}")
                 break
             agent.step += 1
+
         agent.decay()
         if save_gif and len(frames) > 0:
             save_frames_as_gif(frames, path=f"renders/{agent.name}_{i_episode}.gif")
@@ -418,40 +375,33 @@ if __name__ == '__main__':
                          'speed': (env.observation_space.low[1], env.observation_space.high[1])}
     action_range = (env.action_space.low, env.action_space.high)
 
-    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30, n_actions=10,
-                         observation_range=observation_range,
-                         action_range=action_range,
-                         action_strategy='simulated annealing')
+    q_agent = QLearning(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, 
+                        n_observations=30, n_actions=10,
+                        observation_range=observation_range,
+                        action_range=action_range,
+                        action_strategy='simulated annealing', init_strategy='random')
 
     sarsa_agent = SARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.03,
                         n_observations=30, n_actions=10,
                         observation_range=observation_range,
-                        action_range=action_range)
+                        action_range=action_range,
+                        action_strategy='simulated annealing', init_strategy='random')
 
-    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, n_observations=30,
-                                           n_actions=10, backwards_learning_rate=0.1, backwards_discount_factor=0.99,
+    backwards_sarsa_agent = BackwardsSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.07, backwards_learning_rate=0.1, backwards_discount_factor=0.99,
+                                           n_observations=30, n_actions=10,
                                            observation_range=observation_range,
-                                           action_range=action_range)
+                                           action_range=action_range,
+                                           action_strategy='simulated annealing', init_strategy='random')
 
-    nstep_sarsa_agent = NStepSARSA(lookahead=10, epsilon=0.5, discount_factor=0.99, learning_rate=0.02,
+    nstep_sarsa_agent = NStepSARSA(epsilon=0.5, discount_factor=0.99, learning_rate=0.02, lookahead=10,
                                    n_observations=30, n_actions=10,
                                    observation_range=observation_range,
-                                   action_range=action_range)
+                                   action_range=action_range,
+                                   action_strategy='simulated annealing', init_strategy='random')
 
-    mlp_args = {'hidden_layer_sizes': (8, 8),
-                'activation': 'relu',
-                'solver': 'adam',
-                'alpha': 0.001,
-                'max_iter': 10000,
-                'random_state': None,
-                'tol': 0.0001,
-                'verbose': False,
-                'warm_start': True}
-
-    deep_agent = DeepQLearning(mlp_args, epsilon=0.5, discount_factor=0.95, batch_size=1500, n_actions=10,
-                                observation_range=observation_range,
-                                action_range=action_range)
+    file = open("results.txt", "w")  # where to save logs of agent learning
 
     agent = backwards_sarsa_agent
-    learning(agent, verbose=1000, n_episodes=10000, save_gif=False)
+    learning(agent, verbose=1000, n_episodes=10000, save_gif=False, file=file)
     agent.save()
+    file.close()
